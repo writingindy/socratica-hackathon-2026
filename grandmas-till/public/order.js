@@ -27,8 +27,7 @@ function renderMenu() {
   const root = $('menu');
   for (const cat of ['Parfaits', 'Bakes', 'Drinks']) {
     root.append(h('h2', { class: 'cat' }, cat));
-    root.append(h('div', { class: 'tiles' }, MENU.filter(m => m.cat === cat).map(it => h('button', { class: 'tile', type: 'button', 'data-id': it.id, 'aria-label': 'Add ' + it.name + ', ' + money.format(it.price), onclick: () => addToCart(it.id, 1) },
-      glass(it, 'big'), h('span', { class: 'tile-txt' }, h('span', { class: 'tile-name' }, it.name), h('span', { class: 'tile-price' }, money.format(it.price))), h('span', { class: 'tile-qty', hidden: true })))));
+    root.append(h('div', { class: 'menu-grid' }, MENU.filter(m => m.cat === cat).map(it => menuTile(it, () => addToCart(it.id, 1), 'Add ' + it.name + ', ' + money.format(it.price)))));
   }
 }
 function addToCart(id, n) { const q = (S.cart.get(id) || 0) + n; if (q <= 0) S.cart.delete(id); else S.cart.set(id, Math.min(q, 20)); render(); }
