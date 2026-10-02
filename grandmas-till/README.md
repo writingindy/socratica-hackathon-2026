@@ -16,7 +16,7 @@ node server.js
 Then open <http://localhost:3000> and pick a screen. That is the whole setup: there is nothing to install.
 
 - Needs Node 18 or newer (`node --version`). The pages need the server; they do not work opened as plain files.
-- On Node 22.13+ the store is SQLite at `data/till.db`. On older Node the same records go to `data/till.json`. The startup line says which one you got.
+- On Node 22.13+ the store is SQLite at `../data/till.db`, the database shared with [grandmas-dashboard](../grandmas-dashboard/). On older Node the same records go to `../data/till.json`. The startup line says which one you got.
 - The server prints a `Phones:` address. Open `/order` on a phone on the same Wi-Fi and `/counter` on a laptop.
 - `npm run dev` restarts the server whenever `server.js` changes.
 - `npm run reset` wipes the database and starts fresh.
@@ -36,7 +36,7 @@ cd socratica-hackathon-2026/grandmas-till
 node server.js
 ```
 
-Everyone gets their own local database, because `data/` is ignored by git.
+Everyone gets their own local database, because the database files in `../data/` are ignored by git.
 
 ## How an order moves
 
@@ -59,7 +59,7 @@ In the queue Grandma taps **Mark ready** (`new` → `ready`), then **Handed over
 | `public/order.html`, `order.js` | The customer screen: menu, checkout, order status | changing the customer flow |
 | `public/index.html` | Start page that links to both screens | |
 | `public/style.css` | All styling, light and dark | changing how it looks |
-| `data/` | The database. Created on first run, never committed | never by hand |
+| `../data/db.js` | The shared database code, used by this project and the dashboard. The database file next to it is created on first run and never committed | changing tables or storage |
 
 ## API
 
@@ -112,8 +112,8 @@ A database made by the earlier version gets `order_no`, `name` and `status` adde
 For revenue, leave out `pay = 'pending'`, since that money hasn't been taken yet.
 
 ```bash
-sqlite3 data/till.db "SELECT order_no, name, status, pay, total FROM sales WHERE src <> 'sim' ORDER BY ts DESC LIMIT 10;"
-sqlite3 data/till.db "SELECT src, COUNT(*), ROUND(SUM(total), 2) FROM sales WHERE pay <> 'pending' GROUP BY src;"
+sqlite3 ../data/till.db "SELECT order_no, name, status, pay, total FROM sales WHERE src <> 'sim' ORDER BY ts DESC LIMIT 10;"
+sqlite3 ../data/till.db "SELECT src, COUNT(*), ROUND(SUM(total), 2) FROM sales WHERE pay <> 'pending' GROUP BY src;"
 ```
 
 ## Two-minute demo

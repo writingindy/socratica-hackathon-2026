@@ -7,6 +7,9 @@ Project demos for the Socratica Hackathon. Each folder is one project and runs o
 | Project | What it is | Run it | Port |
 |---|---|---|---|
 | [grandmas-till](grandmas-till/) | A bakery point-of-sale: a counter screen for Grandma and a self-order screen for customers, on one database | `cd grandmas-till && node server.js` | 3000 |
+| [grandmas-dashboard](grandmas-dashboard/) | Grandma's owner dashboard: what to bake, supplies, flavors, marketing. Needs the till running | `cd grandmas-dashboard && npm install && npm run dev` | 3001 |
+
+**Shared database:** [`data/`](data/) holds the one database both projects use. The till writes to it; the dashboard reads it. See [data/README.md](data/README.md).
 
 ## Get started
 
@@ -19,7 +22,7 @@ Then follow the README inside the project you're working on.
 
 ## House rules
 
-1. **Each project stands alone.** Nothing reaches into another project's folder. Add a `shared/` folder only when two projects actually need the same code.
+1. **Each project stands alone.** Nothing reaches into another project's folder. Code two projects both need goes in a top-level folder, like [`data/`](data/) for the database.
 2. **One repository.** Don't run `git init` inside a project folder; everything is committed from here.
 3. **One port per project**, so demos can run side by side. Pick the next free port in the table above when you add a project.
 4. **Deploying:** point the host's "Root Directory" setting at the project's folder.

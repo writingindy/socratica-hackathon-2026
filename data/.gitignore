@@ -1,0 +1,3 @@
+# The database itself is local to each machine; only the code that opens it is shared.
+till.db*
+till.json*
