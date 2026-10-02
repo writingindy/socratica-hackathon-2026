@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Order at Grandma's</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="kiosk">
+<header class="top"><div class="wrap top-in">
+  <div class="brand">
+    <span class="glass big" aria-hidden="true" style="--l1:#B81F56;--l2:#FFF6E3;--l3:#F2C14E;--l4:#D9C8EC"></span>
+    <div><h1>Grandma's</h1><p>Parfaits, pastries and coffee</p></div>
+  </div>
+  <span class="chip" id="chip"><span class="dot"></span><span id="chipText">Connecting…</span></span>
+</div></header>
+
+<main class="wrap" id="main">
+
+<section id="view-menu">
+  <div class="k-hero"><h2>What would you like today?</h2><p class="sub">Tap to add. We'll call your name when it's ready.</p></div>
+  <div class="till">
+    <div id="menu"></div>
+    <aside class="side" aria-label="Your order">
+      <div class="receipt" id="bag"></div>
+      <button type="button" class="btn primary charge" id="toCheckout" disabled>Check out</button>
+    </aside>
+  </div>
+</section>
+
+<section id="view-checkout" hidden>
+  <button type="button" class="back" id="back">← Keep browsing</button>
+  <div class="checkout">
+    <div class="receipt" id="summary"></div>
+    <form class="panel k-form" id="checkoutForm" novalidate>
+      <label class="k-label" for="custName">Your name</label>
+      <input id="custName" type="text" maxlength="30" autocomplete="given-name" placeholder="So we can call you" required>
+      <p class="err" id="nameErr" hidden>Please add a name so we know who the order is for.</p>
+
+      <label class="k-label" for="memberNum">Member number <span class="opt">optional</span></label>
+      <input id="memberNum" type="text" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="e.g. 1004">
+      <p class="hint" id="memberHint"></p>
+
+      <fieldset class="paychoice">
+        <legend class="k-label">How would you like to pay?</legend>
+        <label><input type="radio" name="pay" value="card" checked><span><b>Card, now</b><small>Tap or insert on the reader</small></span></label>
+        <label><input type="radio" name="pay" value="pending"><span><b>At the counter</b><small>Cash or card when you collect</small></span></label>
+      </fieldset>
+
+      <button type="submit" class="btn primary charge" id="place">Place order</button>
+    </form>
+  </div>
+</section>
+
+<section id="view-done" hidden>
+  <div class="done panel" id="done"></div>
+</section>
+
+</main>
+
+<div class="cartbar" id="cartbar" hidden><span class="t" id="cartbarText"></span><button type="button" class="btn primary" id="cartbarGo">Check out</button></div>
+<div class="paying" id="paying" hidden><div class="paying-in"><span class="cardicon" aria-hidden="true"></span><p id="payingText">Tap, insert or swipe your card</p></div></div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="core.js"></script>
+<script src="shared.js"></script>
+<script src="order.js"></script>
+</body>
+</html>

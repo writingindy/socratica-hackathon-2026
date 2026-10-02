@@ -6,7 +6,7 @@ Project demos for the Socratica Hackathon. Each folder is one project and runs o
 
 | Project | What it is | Run it | Port |
 |---|---|---|---|
-| [grandmas-till](grandmas-till/) | A simulated bakery till that saves every sale, forecasts tomorrow's bake and builds member taste profiles | `cd grandmas-till && node server.js` | 3000 |
+| [grandmas-till](grandmas-till/) | A bakery point-of-sale: a counter screen for Grandma and a self-order screen for customers, on one database | `cd grandmas-till && node server.js` | 3000 |
 
 ## Get started
 

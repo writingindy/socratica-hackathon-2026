@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grandma's Counter</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><div class="wrap top-in">
+  <a class="brand" href="./">
+    <span class="glass big" aria-hidden="true" style="--l1:#B81F56;--l2:#FFF6E3;--l3:#F2C14E;--l4:#D9C8EC"></span>
+    <div><h1>Grandma's Counter</h1><p>Ring up sales and make the orders</p></div>
+  </a>
+  <div class="tabs" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" id="tabbtn-ring" aria-controls="tab-ring" aria-selected="true">Ring up</button>
+    <button type="button" role="tab" id="tabbtn-orders" aria-controls="tab-orders" aria-selected="false">Orders <span class="badge" id="queueBadge" hidden></span></button>
+    <button type="button" role="tab" id="tabbtn-today" aria-controls="tab-today" aria-selected="false">Today</button>
+  </div>
+  <span class="chip" id="chip"><span class="dot"></span><span id="chipText">Connecting…</span></span>
+</div></header>
+
+<main class="wrap" id="main">
+
+<section id="tab-ring" role="tabpanel" aria-labelledby="tabbtn-ring">
+  <div class="till">
+    <div id="menu"></div>
+    <aside class="side" aria-label="Current sale">
+      <section class="panel memberbox">
+        <h2>Member</h2>
+        <div id="memberFind">
+          <label class="sr" for="memberSearch">Find a member by number or name</label>
+          <input id="memberSearch" type="search" placeholder="Number or name, e.g. 1004 or Noah" autocomplete="off">
+          <div id="memberResults" class="mres-list"></div>
+        </div>
+        <div id="memberCard" hidden></div>
+      </section>
+      <div class="receipt" id="receipt"></div>
+      <section class="panel memberbox">
+        <h2><label for="pickupName">Name for pickup</label></h2>
+        <input id="pickupName" type="text" maxlength="30" placeholder="Leave blank to hand over now" autocomplete="off">
+        <p class="hint" id="pickupHint">Add a name to send this order to the make queue.</p>
+      </section>
+      <div class="seg" role="group" aria-label="Payment">
+        <button type="button" id="payCard" aria-pressed="true">Card</button>
+        <button type="button" id="payCash" aria-pressed="false">Cash</button>
+      </div>
+      <button type="button" class="btn primary charge" id="charge" disabled>Charge</button>
+    </aside>
+  </div>
+</section>
+
+<section id="tab-orders" role="tabpanel" aria-labelledby="tabbtn-orders" hidden>
+  <div class="sechead">
+    <div><h2>Orders to make</h2><p class="sub">Kiosk orders and counter orders with a name land here. Mark them ready, then hand them over.</p></div>
+    <button type="button" class="btn" id="simulate">Simulate 3 customers</button>
+  </div>
+  <div class="queue">
+    <section aria-labelledby="colNew"><h3 class="col-h" id="colNew">To make <span class="num" id="nNew"></span></h3><ol class="cards" id="qNew"></ol></section>
+    <section aria-labelledby="colReady"><h3 class="col-h" id="colReady">Ready for pickup <span class="num" id="nReady"></span></h3><ol class="cards" id="qReady"></ol></section>
+  </div>
+</section>
+
+<section id="tab-today" role="tabpanel" aria-labelledby="tabbtn-today" hidden>
+  <div class="sechead">
+    <div><h2 id="todayTitle">Today</h2><p class="sub">Every order rung up or placed today, newest first.</p></div>
+    <button type="button" class="btn" id="clear">Clear test orders</button>
+  </div>
+  <div class="totals" id="totals"></div>
+  <ol class="feed" id="feed"></ol>
+</section>
+
+</main>
+
+<div class="cartbar" id="cartbar" hidden><span class="t" id="cartbarText"></span><button type="button" class="btn primary" id="cartbarCharge">Charge</button></div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="core.js"></script>
+<script src="shared.js"></script>
+<script src="counter.js"></script>
+</body>
+</html>

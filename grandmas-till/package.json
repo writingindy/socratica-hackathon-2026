@@ -2,7 +2,7 @@
   "name": "grandmas-till",
   "version": "0.1.0",
   "private": true,
-  "description": "A simulated bakery till that saves every sale, forecasts tomorrow's bake and builds member taste profiles.",
+  "description": "A bakery point-of-sale with a counter screen for Grandma and a self-order screen for customers, sharing one database.",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
