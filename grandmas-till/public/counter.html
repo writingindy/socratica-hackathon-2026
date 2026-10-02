@@ -4,26 +4,31 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Grandma's Counter</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Patrick+Hand&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="top"><div class="wrap top-in">
-  <a class="brand" href="./">
-    <span class="glass big" aria-hidden="true" style="--l1:#B81F56;--l2:#FFF6E3;--l3:#F2C14E;--l4:#D9C8EC"></span>
-    <div><h1>Grandma's Counter</h1><p>Ring up sales and make the orders</p></div>
-  </a>
-  <div class="tabs" role="tablist" aria-label="Sections">
-    <button type="button" role="tab" id="tabbtn-ring" aria-controls="tab-ring" aria-selected="true">Ring up</button>
-    <button type="button" role="tab" id="tabbtn-orders" aria-controls="tab-orders" aria-selected="false">Orders <span class="badge" id="queueBadge" hidden></span></button>
-    <button type="button" role="tab" id="tabbtn-today" aria-controls="tab-today" aria-selected="false">Today</button>
-  </div>
+<div class="parfait-stripe" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+<div class="app-shell">
+<aside class="sidebar">
+  <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">G</span><span>Grandma's<br><i>Bakeria</i></span></a>
+  <nav class="nav-list" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" id="tabbtn-ring" aria-controls="tab-ring" aria-selected="true"><span class="nav-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h2l2 10h10l2-7H6M9 20h.01M17 20h.01"/></svg></span>Ring up</button>
+    <button type="button" role="tab" id="tabbtn-orders" aria-controls="tab-orders" aria-selected="false"><span class="nav-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18h14M7 18v-4c0-3 2-6 5-6s5 3 5 6v4M9 8c0-2 1-3 3-3s3 1 3 3"/></svg></span>Orders <i class="nav-badge" id="queueBadge" hidden></i></button>
+    <button type="button" role="tab" id="tabbtn-today" aria-controls="tab-today" aria-selected="false"><span class="nav-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20h-5v-6H9v6H4Z"/></svg></span>Today</button>
+  </nav>
+  <div class="nav-divider"><span>Customers</span></div>
+  <a class="side-link" href="order" target="_blank" rel="noopener">Open the order screen <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg></a>
+  <div class="sidebar-help"><span>Counter</span><p>Orders from the customer screen land in Orders the moment they are placed.</p></div>
+</aside>
+<section class="main-panel">
+  <div class="mobile-top"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">G</span><span>Grandma's <i>Bakeria</i></span></a></div>
   <span class="chip" id="chip"><span class="dot"></span><span id="chipText">Connecting…</span></span>
-</div></header>
-
-<main class="wrap" id="main">
+  <div class="screen">
+<main id="main">
 
 <section id="tab-ring" role="tabpanel" aria-labelledby="tabbtn-ring">
+  <div class="sechead"><div><h2>Ring up</h2><p class="sub">Counter sale. Kiosk orders arrive under Orders.</p></div></div>
   <div class="till">
     <div id="menu"></div>
     <aside class="side" aria-label="Current sale">
@@ -72,6 +77,9 @@
 </section>
 
 </main>
+  </div>
+</section>
+</div>
 
 <div class="cartbar" id="cartbar" hidden><span class="t" id="cartbarText"></span><button type="button" class="btn primary" id="cartbarCharge">Charge</button></div>
 <div id="toast" role="status" aria-live="polite" hidden></div>

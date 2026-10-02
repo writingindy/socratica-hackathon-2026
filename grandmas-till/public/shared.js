@@ -13,7 +13,12 @@ const fmtShort = ts => new Date(ts).toLocaleDateString('en-CA', { month: 'short'
 const itemName = id => (MENU[IDX[id]] || { name: 'Item' }).name;
 const newId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-function glass(it, cls) { const g = h('span', { class: 'glass' + (cls ? ' ' + cls : ''), 'aria-hidden': 'true' }); it.layers.forEach((c, i) => g.style.setProperty('--l' + (i + 1), c)); return g; }
+/* menu cards in the dashboard's style: a colour per item and a hand-drawn initial */
+const TONES = ['pink', 'yellow', 'blue', 'green', 'red', 'cream'];
+function menuTile(it, onclick, label) {
+  return h('button', { class: 'menu-item tile menu-' + TONES[IDX[it.id] % TONES.length], type: 'button', 'data-id': it.id, 'aria-label': label, onclick },
+    h('span', { class: 'menu-doodle', 'aria-hidden': 'true' }, it.name.charAt(0)), h('span', { class: 'tile-name' }, it.name), h('b', { class: 'tile-price' }, money.format(it.price)), h('span', { class: 'tile-qty', hidden: true }));
+}
 const orderNo = o => (o.no ? '#' + o.no : '#–'); /* orders saved before numbering have none */
 function linesText(lines) { return lines.map(l => (l.q > 1 ? l.q + '× ' : '') + itemName(l.id)).join(', '); }
 function minsAgo(ts) { const m = Math.floor((Date.now() - ts) / 60000); return m < 1 ? 'just now' : m + ' min ago'; }
