@@ -1,0 +1,12 @@
+{
+  "name": "demand-pred",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Weekly demand forecast and shopping list for Grandma's shop, read from the grandmas-till database.",
+  "scripts": {
+    "plan": "node forecast.js",
+    "start": "node forecast.js --watch",
+    "note": "node forecast.js --note"
+  },
+  "engines": { "node": ">=22.13" }
+}

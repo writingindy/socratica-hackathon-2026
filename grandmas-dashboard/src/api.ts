@@ -26,6 +26,58 @@ export type Member = { id: string; num: number; name: string; joined: number; sa
 
 export type Health = { ok: boolean; store: "sqlite" | "json"; file: string };
 
+/** One forecast run made by demand-pred. Days are local "YYYY-MM-DD" strings, money is CAD. */
+export type ForecastRun = {
+  id: string;
+  kind: "rolling" | "weekly"; // rolling: the 7 days from the day it was made. weekly: the 7 days from the day after, with a shopping list
+  created: number; // epoch ms
+  reason: string;
+  weekStart: string;
+  weekEnd: string;
+  historyStart: string;
+  historyEnd: string;
+  method: string;
+  freshUnits: number;
+  drinkUnits: number;
+  expectedRevenue: number;
+  suppliesCost: number;
+  backtest: { weeks: number; itemErr: number; naiveErr: number; covered: number } | null;
+  note: string; // the plain-text note for Grandma
+};
+
+/** One item on one day. `make` is how many to bake; null for drinks, which are made to order. */
+export type DayForecast = {
+  day: string;
+  weekday: string;
+  itemId: string;
+  itemName: string;
+  madeAhead: boolean;
+  forecast: number;
+  low: number;
+  high: number;
+  make: number | null;
+};
+
+/** One line of the weekly shopping list. `need` is in `unit`; `onHand`, `packs`, `buyNow` and `buyLater` count packs. */
+export type SupplyLine = {
+  id: string;
+  name: string;
+  aisle: string;
+  unit: "g" | "ml" | "each";
+  need: number;
+  onHand: number;
+  packs: number;
+  packName: string;
+  packSize: number;
+  cost: number;
+  buyNow: number;
+  buyLater: number;
+  buyLaterDay: string | null;
+};
+
+export type RollingForecast = { run: ForecastRun; forecasts: DayForecast[] };
+export type WeeklyPlan = { run: ForecastRun; forecasts: DayForecast[]; supplies: SupplyLine[] };
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(BASE + path, init);
   const body = await res.json().catch(() => ({}));
@@ -54,6 +106,11 @@ export const api = {
     request<Sale>(`/api/sales/${encodeURIComponent(id)}`, json("PATCH", change)),
 
   members: () => request<Member[]>("/api/members"),
+
+  /** The 7 days from today, remade every day by demand-pred. Fails with 404 until it has run. */
+  rollingForecast: () => request<RollingForecast>("/api/forecast/rolling"),
+  /** The weekly plan and shopping list, made every Sunday evening by demand-pred. Fails with 404 until it has run. */
+  weeklyPlan: () => request<WeeklyPlan>("/api/forecast/weekly"),
   addMember: (name: string) => request<Member>("/api/members", json("POST", { name })),
 };
 
