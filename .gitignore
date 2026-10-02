@@ -1,0 +1,9 @@
+# Shared defaults for every project. Project-specific rules live in each project's own .gitignore.
+node_modules/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+.vscode/
+.idea/

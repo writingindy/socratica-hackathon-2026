@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grandma's Till</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><div class="wrap top-in">
+  <div class="brand">
+    <span class="glass big" aria-hidden="true" style="--l1:#B81F56;--l2:#FFF6E3;--l3:#F2C14E;--l4:#D9C8EC"></span>
+    <div><h1>Grandma's Till</h1><p>Parfait and pastry counter · demo shop</p></div>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" id="tabbtn-till" aria-controls="tab-till" aria-selected="true">Till</button>
+    <button type="button" role="tab" id="tabbtn-members" aria-controls="tab-members" aria-selected="false">Members</button>
+    <button type="button" role="tab" id="tabbtn-insights" aria-controls="tab-insights" aria-selected="false">Insights</button>
+    <button type="button" role="tab" id="tabbtn-flow" aria-controls="tab-flow" aria-selected="false">Data flow</button>
+  </div>
+  <span class="chip" id="chip"><span class="dot"></span><span id="chipText">Connecting…</span></span>
+</div></header>
+
+<main class="wrap" id="main">
+
+<section id="tab-till" role="tabpanel" aria-labelledby="tabbtn-till">
+  <div class="till">
+    <div id="menu"></div>
+    <aside class="side" aria-label="Current order">
+      <section class="panel memberbox">
+        <h2>Member</h2>
+        <div id="memberFind">
+          <label class="sr" for="memberSearch">Find a member by number or name</label>
+          <input id="memberSearch" type="search" placeholder="Number or name, e.g. 1004 or Noah" autocomplete="off">
+          <div id="memberResults" class="mres-list"></div>
+        </div>
+        <div id="memberCard" hidden></div>
+      </section>
+      <div class="receipt" id="receipt"></div>
+      <div class="seg" role="group" aria-label="Payment">
+        <button type="button" id="payCard" aria-pressed="true">Card</button>
+        <button type="button" id="payCash" aria-pressed="false">Cash</button>
+      </div>
+      <button type="button" class="btn primary charge" id="charge" disabled>Charge</button>
+    </aside>
+  </div>
+  <div class="feedwrap">
+    <div class="feedhead">
+      <div class="ph"><h2 style="font:600 17.5px/1.2 var(--display)">Sales as they land</h2><p class="sub">Every charge is saved as one record. Insights and taste profiles update from it straight away.</p></div>
+      <button type="button" class="btn" id="rush">Simulate a rush</button>
+      <button type="button" class="btn" id="clear">Clear till sales</button>
+    </div>
+    <ol class="feed" id="feed"></ol>
+  </div>
+</section>
+
+<section id="tab-members" role="tabpanel" aria-labelledby="tabbtn-members" hidden>
+  <div class="members">
+    <section class="panel">
+      <h2>Members</h2>
+      <p class="sub" id="memberCount"></p>
+      <label class="sr" for="memberFilter">Filter members</label>
+      <input id="memberFilter" type="search" placeholder="Filter by name, number or taste" autocomplete="off" style="margin-top:10px">
+      <div class="mlist" id="mlist"></div>
+    </section>
+    <div class="mdetail" id="mdetail"></div>
+  </div>
+</section>
+
+<section id="tab-insights" role="tabpanel" aria-labelledby="tabbtn-insights" hidden>
+  <div class="grid">
+    <section class="panel c12"><div class="kpis" id="kpis"></div></section>
+
+    <section class="panel c5 span2">
+      <div class="ph"><h2 id="bakeTitle">Bake sheet</h2><p class="sub">How many of each to make. Tap an item to see its chart.</p></div>
+      <div class="scroll"><table class="tbl" id="bake"></table></div>
+      <p class="fine" id="bakeNote"></p>
+    </section>
+    <section class="panel c7">
+      <div class="ph"><h2 id="demandTitle">Fresh items sold per day</h2><p class="sub">The last three weeks, and the forecast for the week ahead.</p></div>
+      <div class="legend"><span><i class="lg-line"></i>Sold</span><span><i class="lg-dash"></i>Forecast, with likely range</span></div>
+      <div class="chart" id="demand"></div>
+      <details><summary>Show the numbers</summary><div class="scroll"><table class="tbl" id="demandTable"></table></div></details>
+      <p class="fine" id="accuracy"></p>
+    </section>
+
+    <section class="panel c7">
+      <div class="ph"><h2>Busy hours</h2><p class="sub" id="heatSub">Average sales in each hour, by weekday.</p></div>
+      <div class="scroll"><table class="heat" id="heat"></table></div>
+    </section>
+    <section class="panel c4">
+      <div class="ph"><h2>Top sellers this week</h2><p class="sub">Items sold in the last 7 days.</p></div>
+      <div class="bars" id="top"></div>
+    </section>
+
+    <section class="panel c4">
+      <div class="ph"><h2>Bought together</h2><p class="sub">Pairs that share a sale more often than chance. Good candidates for a combo price.</p></div>
+      <ul class="pairs" id="pairs"></ul>
+    </section>
+    <section class="panel c4 wide-md">
+      <div class="ph"><h2>Flavor trends</h2><p class="sub">Each flavor's share of items sold, last 14 days against the 14 before.</p></div>
+      <div class="legend"><span><i class="lg-rect"></i>Gaining share</span><span><i class="lg-rect b"></i>Losing share</span></div>
+      <div class="bars" id="flavor"></div>
+    </section>
+
+    <section class="panel c8">
+      <div class="ph"><h2>Fall parfait test</h2><p class="sub" id="conceptSub">Five ideas, ranked by how many members' taste profiles they match.</p></div>
+      <ol class="concepts" id="concepts"></ol>
+    </section>
+    <section class="panel c4">
+      <div class="ph"><h2>Closing totals</h2><p class="sub">Today so far, split the way the card terminal and cash drawer will show it.</p></div>
+      <div class="closing" id="closing"></div>
+    </section>
+  </div>
+</section>
+
+<section id="tab-flow" role="tabpanel" aria-labelledby="tabbtn-flow" hidden>
+  <div class="grid">
+    <section class="panel c12">
+      <div class="ph"><h2>How a sale becomes a decision</h2><p class="sub">Data moves left to right. Nothing is typed in twice: the only input is the sale itself.</p></div>
+      <figure>
+        <div class="dg">
+        <svg viewBox="0 0 1120 566" role="img" aria-label="Data flow: the till and member sign-up write sale and member records to a shared store. Features are rebuilt from those records on every change, four small models read the features, and their results appear as the bake sheet, till prompts, flavor trends and the fall parfait pick. Till prompts feed back into the next sale.">
+          <defs><marker id="dg-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+          <!-- column heads -->
+          <text class="dg-h" x="30" y="26">1 · Capture</text><text class="dg-hs" x="30" y="44">what happens at the counter</text>
+          <text class="dg-h" x="258" y="26">2 · Store</text><text class="dg-hs" x="258" y="44">every sale kept as a record</text>
+          <text class="dg-h" x="486" y="26">3 · Features</text><text class="dg-hs" x="486" y="44">rebuilt on every change</text>
+          <text class="dg-h" x="714" y="26">4 · Models</text><text class="dg-hs" x="714" y="44">small maths you can explain</text>
+          <text class="dg-h" x="942" y="26">5 · Decisions</text><text class="dg-hs" x="942" y="44">what Grandma sees</text>
+          <!-- capture -->
+          <rect class="dg-box" x="30" y="72" width="164" height="148" rx="8"/>
+          <text class="dg-t" x="42" y="96">Till</text>
+          <text class="dg-s" x="42" y="116">items, quantity, price</text><text class="dg-s" x="42" y="132">card or cash</text><text class="dg-s" x="42" y="148">member number, if any</text><text class="dg-s" x="42" y="176">saved on Charge</text>
+          <rect class="dg-box dg-sim" x="30" y="240" width="164" height="64" rx="8"/>
+          <text class="dg-t" x="42" y="264">Sales simulator</text><text class="dg-s" x="42" y="282">6 weeks of sample history</text>
+          <rect class="dg-box" x="30" y="468" width="164" height="64" rx="8"/>
+          <text class="dg-t" x="42" y="492">Member sign-up</text><text class="dg-s" x="42" y="510">name becomes a number</text>
+          <!-- store -->
+          <rect class="dg-box dg-store" x="258" y="72" width="164" height="376" rx="8"/>
+          <text class="dg-m" x="270" y="96">sales</text><text class="dg-s" x="270" y="114">one record per sale</text>
+          <text class="dg-s" x="270" y="146">ts · time of sale</text><text class="dg-s" x="270" y="164">lines · item, qty, price</text><text class="dg-s" x="270" y="182">pay · card or cash</text><text class="dg-s" x="270" y="200">m · member, if any</text><text class="dg-s" x="270" y="218">src · till or rush</text>
+          <text class="dg-s" x="270" y="290">written once,</text><text class="dg-s" x="270" y="306">never edited</text>
+          <text class="dg-s" x="270" y="412">SQLite, pushed live</text><text class="dg-s" x="270" y="428">to every open screen</text>
+          <rect class="dg-box dg-store" x="258" y="468" width="164" height="64" rx="8"/>
+          <text class="dg-m" x="270" y="492">members</text><text class="dg-s" x="270" y="510">num · name · joined</text>
+          <!-- features -->
+          <rect class="dg-box" x="486" y="72" width="164" height="64" rx="8"/><text class="dg-t" x="498" y="96">Daily units per item</text><text class="dg-s" x="498" y="114">also by weekday and hour</text>
+          <rect class="dg-box" x="486" y="156" width="164" height="64" rx="8"/><text class="dg-t" x="498" y="180">Item pairs per basket</text><text class="dg-s" x="498" y="198">A and B in the same sale</text>
+          <rect class="dg-box" x="486" y="240" width="164" height="64" rx="8"/><text class="dg-t" x="498" y="264">Flavor share, 14 days</text><text class="dg-s" x="498" y="282">units weighted by notes</text>
+          <rect class="dg-ref" x="486" y="324" width="164" height="40" rx="8"/><text class="dg-t" x="498" y="341">Flavor map</text><text class="dg-s" x="498" y="356">7 notes per menu item</text>
+          <rect class="dg-box" x="486" y="384" width="164" height="64" rx="8"/><text class="dg-t" x="498" y="405">Member taste vector</text><text class="dg-s" x="498" y="422">purchases × flavor map,</text><text class="dg-s" x="498" y="436">recent visits weigh more</text>
+          <!-- models -->
+          <rect class="dg-box" x="714" y="72" width="164" height="64" rx="8"/><text class="dg-t" x="726" y="93">Demand forecast</text><text class="dg-s" x="726" y="110">same-weekday average</text><text class="dg-s" x="726" y="124">× two-week trend</text>
+          <rect class="dg-box" x="714" y="156" width="164" height="64" rx="8"/><text class="dg-t" x="726" y="180">Basket lift</text><text class="dg-s" x="726" y="198">P(A and B) ÷ P(A)·P(B)</text>
+          <rect class="dg-box" x="714" y="240" width="164" height="64" rx="8"/><text class="dg-t" x="726" y="264">Trend shift</text><text class="dg-s" x="726" y="282">last 14 days vs prior 14</text>
+          <rect class="dg-box" x="714" y="384" width="164" height="64" rx="8"/><text class="dg-t" x="726" y="408">Taste match</text><text class="dg-s" x="726" y="426">cosine, member vs item</text>
+          <!-- decisions -->
+          <rect class="dg-box" x="942" y="72" width="164" height="64" rx="8"/><text class="dg-t" x="954" y="96">Bake sheet</text><text class="dg-s" x="954" y="114">and busy-hours map</text>
+          <rect class="dg-box" x="942" y="156" width="164" height="64" rx="8"/><text class="dg-t" x="954" y="180">Goes-well-with prompt</text><text class="dg-s" x="954" y="198">at the till</text>
+          <rect class="dg-box" x="942" y="240" width="164" height="64" rx="8"/><text class="dg-t" x="954" y="264">Fall parfait pick</text><text class="dg-s" x="954" y="282">and flavor trends</text>
+          <rect class="dg-box" x="942" y="384" width="164" height="64" rx="8"/><text class="dg-t" x="954" y="408">Usual / try next</text><text class="dg-s" x="954" y="426">at the till, member page</text>
+          <!-- arrows: capture to store -->
+          <line class="dg-a" x1="194" y1="146" x2="256" y2="146" marker-end="url(#dg-arrow)"/><text class="dg-l" x="225" y="139">POST</text>
+          <line class="dg-a dg-d" x1="194" y1="272" x2="256" y2="272" marker-end="url(#dg-arrow)"/><text class="dg-l" x="225" y="265">seeds</text>
+          <line class="dg-a" x1="194" y1="500" x2="256" y2="500" marker-end="url(#dg-arrow)"/><text class="dg-l" x="225" y="493">POST</text>
+          <!-- store to features -->
+          <line class="dg-a" x1="422" y1="104" x2="484" y2="104" marker-end="url(#dg-arrow)"/><text class="dg-l" x="453" y="97">live push</text>
+          <line class="dg-a" x1="422" y1="188" x2="484" y2="188" marker-end="url(#dg-arrow)"/>
+          <line class="dg-a" x1="422" y1="272" x2="484" y2="272" marker-end="url(#dg-arrow)"/>
+          <line class="dg-a" x1="422" y1="416" x2="484" y2="416" marker-end="url(#dg-arrow)"/>
+          <polyline class="dg-a" points="422,500 568,500 568,450" marker-end="url(#dg-arrow)"/><text class="dg-l" x="453" y="493">names</text>
+          <line class="dg-a" x1="568" y1="324" x2="568" y2="306" marker-end="url(#dg-arrow)"/>
+          <line class="dg-a" x1="568" y1="364" x2="568" y2="382" marker-end="url(#dg-arrow)"/>
+          <!-- features to models -->
+          <line class="dg-a" x1="650" y1="104" x2="712" y2="104" marker-end="url(#dg-arrow)"/>
+          <line class="dg-a" x1="650" y1="188" x2="712" y2="188" marker-end="url(#dg-arrow)"/>
+          <line class="dg-a" x1="650" y1="272" x2="712" y2="272" marker-end="url(#dg-arrow)"/>
+          <line class="dg-a" x1="650" y1="416" x2="712" y2="416" marker-end="url(#dg-arrow)"/>
+          <!-- models to decisions -->
+          <line class="dg-a" x1="878" y1="104" x2="940" y2="104" marker-end="url(#dg-arrow)"/>
+          <line class="dg-a" x1="878" y1="188" x2="940" y2="188" marker-end="url(#dg-arrow)"/>
+          <line class="dg-a" x1="878" y1="272" x2="940" y2="272" marker-end="url(#dg-arrow)"/>
+          <line class="dg-a" x1="878" y1="416" x2="940" y2="416" marker-end="url(#dg-arrow)"/>
+          <line class="dg-a" x1="878" y1="396" x2="940" y2="298" marker-end="url(#dg-arrow)"/><text class="dg-l" x="910" y="380" style="text-anchor:start">fans</text>
+          <!-- feedback -->
+          <polyline class="dg-a dg-d" points="1024,448 1024,552 14,552 14,146 28,146" marker-end="url(#dg-arrow)"/>
+          <text class="dg-l" x="640" y="545">prompts at the till shape the next sale</text>
+        </svg>
+        </div>
+        <figcaption>One sale record feeds everything. Solid arrows are live data; dashed arrows are the simulated history and the feedback loop from till prompts to the next sale. The two outlined boxes are the only things stored.</figcaption>
+      </figure>
+    </section>
+
+    <section class="panel c5">
+      <div class="ph"><h2>The newest record</h2><p class="sub">Exactly what the store holds for the latest sale. Ring one up and watch it change.</p></div>
+      <pre class="rec" id="lastRecord"></pre>
+    </section>
+    <section class="panel c7">
+      <div class="ph"><h2>The four models</h2><p class="sub">Each one is a few lines of arithmetic, so anyone at the shop can check why it said what it said.</p></div>
+      <div class="scroll"><table class="tbl">
+        <thead><tr><th>Model</th><th>How it works</th><th>Shows up as</th></tr></thead>
+        <tbody>
+          <tr><td><b>Demand forecast</b></td><td>Average of the last six same weekdays, newest counted most, nudged by the change between the last two fortnights. Scored every day against what really sold.</td><td>Bake sheet, demand chart</td></tr>
+          <tr><td><b>Basket lift</b></td><td>How much more often two items share a sale than chance would predict.</td><td>Goes-well-with prompt, combo ideas</td></tr>
+          <tr><td><b>Taste match</b></td><td>A member's purchases become a seven-note taste profile, recent visits weighted more. Items are ranked by how well they match what sets that member apart from the average customer.</td><td>Usual and try-next, Fall parfait test</td></tr>
+          <tr><td><b>Flavor trend</b></td><td>Each flavor note's share of items sold in the last 14 days, against the 14 days before.</td><td>Flavor trends</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section class="panel c12">
+      <div class="ph"><h2>From demo to the real shop</h2></div>
+      <div class="scroll"><table class="tbl">
+        <thead><tr><th>Piece</th><th>In this demo</th><th>In Grandma's shop</th></tr></thead>
+        <tbody>
+          <tr><td><b>Sales capture</b></td><td>This till screen</td><td>The same screen on a counter tablet, next to the card terminal</td></tr>
+          <tr><td><b>Storage</b></td><td>A SQLite file on this laptop, behind a small Node API. Opened without the server, the page keeps sales in the browser</td><td>A hosted database with a nightly backup</td></tr>
+          <tr><td><b>History</b></td><td>Six weeks of simulated sales</td><td>Her own sales. Forecasts need about four weeks of them before they are worth trusting</td></tr>
+          <tr><td><b>Models</b></td><td>Recomputed in the browser after every sale. The server runs the same code for <span class="num">/api/insights</span></td><td>The same formulas, run after each sale and once overnight</td></tr>
+          <tr><td><b>Members</b></td><td>40 sample members, plus anyone signed up at the till</td><td>Customers who choose to join at the counter</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+  </div>
+</section>
+
+<p class="foot">Demo data: the menu, prices, six weeks of sales history and the first 40 members are simulated. Sales and members added on the Till are saved to the database.</p>
+</main>
+
+<div class="cartbar" id="cartbar" hidden><span class="t" id="cartbarText"></span><button type="button" class="btn primary" id="cartbarCharge">Charge</button></div>
+<div id="tip" hidden></div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
