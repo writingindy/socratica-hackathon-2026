@@ -8,6 +8,7 @@ Project demos for the Socratica Hackathon. Each folder is one project and runs o
 |---|---|---|---|
 | [grandmas-till](grandmas-till/) | A bakery point-of-sale: a counter screen for Grandma and a self-order screen for customers, on one database | `cd grandmas-till && node server.js` | 3000 |
 | [grandmas-dashboard](grandmas-dashboard/) | Grandma's owner dashboard: what to bake, supplies, flavors, marketing. Needs the till running | `cd grandmas-dashboard && npm install && npm run dev` | 3001 |
+| [demand-pred](demand-pred/) | Weekly 7-day demand forecast and shopping list. Reads `data/till.db`, writes `data/forecast.db` for the dashboard | `cd demand-pred && node forecast.js --watch` | none |
 
 **Shared database:** [`data/`](data/) holds the one database both projects use. The till writes to it; the dashboard reads it. See [data/README.md](data/README.md).
 

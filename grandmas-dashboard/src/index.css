@@ -223,6 +223,39 @@ button { border: 0; cursor: pointer; }
 .toast > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--leaf); color: white; }
 @keyframes toast-in { from { transform: translateY(20px); opacity: 0; } }
 
+/* forecasts from demand-pred */
+.bar-day small { font-size: 10px; font-weight: 700; color: var(--muted); }
+.bar-day.is-today small { color: var(--ink); }
+.stock em { color: var(--muted); font-size: 11px; font-style: normal; }
+.stock i { background: var(--leaf); }
+.order-amount span + span { margin-top: 4px; color: var(--ink); font-size: 11px; }
+.empty-card { padding: 26px; border: 1.5px dashed var(--ink); background: var(--paper-soft); display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.empty-card p { margin: 0; color: var(--muted); font-size: 14px; max-width: 60ch; }
+.empty-card code, .plan-note { font: 13px/1.5 ui-monospace, "SF Mono", Menlo, monospace; }
+.empty-card code { padding: 8px 12px; border: 1px solid var(--ink); background: var(--butter); }
+.stale-note { margin: -18px 0 22px; padding: 10px 14px; border: 1px solid var(--ink); background: #ffc2b6; font-size: 13px; }
+.plan-section { margin-top: 22px; padding: 22px 24px; border: 1.5px solid var(--ink); background: var(--paper-soft); }
+.plan-section > p { font-size: 14px; line-height: 1.5; }
+.plan-section .card-head { margin-bottom: 14px; gap: 12px; }
+.plan-scroll { overflow-x: auto; }
+.plan-table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.plan-table th { padding: 6px 8px 10px; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-align: right; white-space: nowrap; }
+.plan-table th span { display: block; margin-top: 2px; font-size: 15px; letter-spacing: 0; color: var(--ink); }
+.plan-table th:first-child, .plan-table td:first-child { text-align: left; }
+.plan-table td { padding: 9px 8px; border-top: 1px solid var(--line); text-align: right; }
+.plan-table td:first-child { font-weight: 600; white-space: nowrap; }
+.plan-table .is-today { background: rgba(246, 215, 109, 0.45); }
+.plan-table th.is-today span { color: var(--tomato); }
+.plan-table tfoot td { border-top: 1.5px solid var(--ink); font-weight: 700; }
+.plan-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.plan-stats article { padding: 18px 20px; border: 1.5px solid var(--ink); background: var(--paper-soft); }
+.plan-stats article.is-shop { background: var(--butter); box-shadow: 4px 4px 0 var(--ink); }
+.plan-stats b { display: block; margin-top: 10px; font-size: 36px; line-height: 1; letter-spacing: -0.05em; }
+.plan-stats p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+.plan-callout { margin: 22px 0 0; font: 22px/1.25 var(--hand); }
+.plan-bottom { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 18px; }
+.plan-note { margin: 0; padding: 16px; max-height: 420px; overflow: auto; white-space: pre-wrap; border: 1px solid var(--line); background: var(--paper); }
+
 @media (max-width: 1050px) {
   .app-shell { grid-template-columns: 205px minmax(0,1fr); }
   .sidebar { padding-inline: 13px; }
@@ -231,6 +264,8 @@ button { border: 0; cursor: pointer; }
   .quick-link { min-height: 100px; }
   .flavor-detail, .draft-card, .cart-card { position: relative; top: 0; }
   .menu-item { min-height: 160px; }
+  .plan-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .plan-bottom { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 760px) {
@@ -264,6 +299,9 @@ button { border: 0; cursor: pointer; }
   .check-box { grid-column: 2; grid-row: 1; }
   .menu-grid { grid-template-columns: 1fr 1fr; }
   .menu-item { min-height: 145px; }
+  .plan-section { padding: 18px 14px; }
+  .plan-stats b { font-size: 28px; }
+  .nav-list > button { min-width: 0; flex: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
