@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, subscribe, type DayForecast, type MenuItem, type RollingForecast, type Sale, type SupplyLine, type WeeklyPlan } from "./api";
 
-type Page = "today" | "bake" | "plan" | "history" | "order" | "flavors" | "marketing" | "counter";
+type Page = "today" | "bake" | "plan" | "history" | "order" | "marketing" | "counter";
 
 const pages: { id: Page; label: string; icon: string }[] = [
   { id: "today", label: "Today", icon: "home" },
@@ -9,7 +9,6 @@ const pages: { id: Page; label: string; icon: string }[] = [
   { id: "plan", label: "Week plan", icon: "calendar" },
   { id: "history", label: "Past days", icon: "clock" },
   { id: "order", label: "Order", icon: "box" },
-  { id: "flavors", label: "Trends", icon: "spark" },
   { id: "marketing", label: "Marketing", icon: "heart" },
 ];
 
@@ -21,8 +20,6 @@ const partners = [
 
 /* menu card colours, in menu order */
 const TONES = ["pink", "yellow", "blue", "green", "red", "cream"];
-/* an item counts as rising or fading when its last two weeks differ from the two before by this much */
-const TREND_STEP = 0.15;
 
 /* ----- dates: forecasts use local "YYYY-MM-DD" day keys ----- */
 const DAY_MS = 86400000;
@@ -141,8 +138,6 @@ export default function App() {
   const [bakeApproved, setBakeApproved] = useState(false);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [orderSent, setOrderSent] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<string | null>(null);
-  const [featured, setFeatured] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [menuError, setMenuError] = useState("");
   const [selectedPartner, setSelectedPartner] = useState(0);
@@ -227,27 +222,6 @@ export default function App() {
   const discounts = todaySales.reduce((t, s) => t + (s.discount || 0), 0);
   const payCount = (p: Sale["pay"]) => todaySales.filter((s) => s.pay === p).length;
   const waiting = todaySales.filter((s) => s.src !== "sim" && s.status !== "done");
-
-  /* what's selling: each item's last 14 full days against the 14 before, plus the notes customers left on their orders */
-  const trends = useMemo(() => {
-    const recentFrom = todayStart - 14 * DAY_MS, priorFrom = todayStart - 28 * DAY_MS;
-    const by = new Map<string, { id: string; recent: number; prior: number; revenue: number; notes: { note: string; ts: number; who: string | null }[] }>();
-    const get = (id: string) => { let t = by.get(id); if (!t) { t = { id, recent: 0, prior: 0, revenue: 0, notes: [] }; by.set(id, t); } return t; };
-    for (const m of menu) get(m.id);
-    for (const s of sales) {
-      for (const l of s.lines) {
-        const t = get(l.id);
-        if (s.ts >= recentFrom && s.ts < todayStart) { t.recent += l.q; t.revenue += l.q * l.p; }
-        else if (s.ts >= priorFrom && s.ts < recentFrom) t.prior += l.q;
-        if (l.note) t.notes.push({ note: l.note, ts: s.ts, who: s.name });
-      }
-    }
-    return [...by.values()].map((t) => {
-      const change = t.prior ? (t.recent - t.prior) / t.prior : t.recent ? 1 : 0;
-      const status = change >= TREND_STEP ? "Rising" : change <= -TREND_STEP ? "Fading" : "Steady";
-      return { ...t, change, status, notes: t.notes.sort((a, b) => b.ts - a.ts) };
-    }).sort((a, b) => b.recent - a.recent);
-  }, [sales, menu, todayStart]);
 
   /* units sold on each of the last four same weekdays, newest first */
   const lastFour = useMemo(() => {
@@ -406,7 +380,7 @@ export default function App() {
       const sold: Record<string, number> = {};
       for (const sale of pastSales ?? []) for (const l of sale.lines) sold[l.id] = (sold[l.id] ?? 0) + l.q;
       const items = [...new Set([...rows.filter((r) => r.madeAhead).map((r) => r.itemId), ...Object.keys(sold).filter((id) => fresh.has(id))])]
-        .map((id) => { const r = rows.find((x) => x.itemId === id); return { id, name: names.get(id) ?? id, make: r?.make ?? null, forecast: r?.forecast ?? null, sold: sold[id] ?? 0 }; })
+        .map((id) => { const r = rows.find((x) => x.itemId === id); return { id, name: names.get(id) ?? nameOf(id), make: r?.make ?? null, forecast: r?.forecast ?? null, sold: sold[id] ?? 0 }; })
         .sort((a, b) => (b.make ?? b.sold) - (a.make ?? a.sold));
       const drinks = Object.entries(sold).filter(([id]) => !fresh.has(id)).reduce((t, [, n]) => t + n, 0);
       const planned = items.reduce((t, i) => t + (i.make ?? 0), 0), soldTotal = items.reduce((t, i) => t + i.sold, 0);
@@ -493,46 +467,6 @@ export default function App() {
             <Button disabled={orderSent || selectedSupplies.length === 0} onClick={() => { setOrderSent(true); showToast("Order sent to your supplier."); }}>
               {orderSent ? <><Icon name="check" /> Order sent to supplier</> : <>Send this order <Icon name="arrow" /></>}
             </Button>
-          </div>
-        </>
-      );
-    }
-
-    if (page === "flavors") {
-      const item = trends.find((t) => t.id === selectedItem) ?? trends[0];
-      const maxRecent = Math.max(1, ...trends.map((t) => t.recent));
-      const noteCount = trends.reduce((n, t) => n + t.notes.length, 0);
-      if (!item) return <><PageHeader title="What's selling" subtitle="The last two weeks against the two before." /><NoForecast what="sales" error="No sales in the last four weeks." /></>;
-      const pct = Math.round(Math.abs(item.change) * 100);
-      return (
-        <>
-          <PageHeader title="What's selling" subtitle="Each item's last two weeks against the two weeks before, from the till's sales." />
-          <div className="flavor-layout">
-            <div>
-              <div className="flavor-list">
-                {trends.map((t) => (
-                  <button className={`flavor-row ${item.id === t.id ? "is-selected" : ""}`} key={t.id} onClick={() => setSelectedItem(t.id)}>
-                    <div><span className="row-title">{nameOf(t.id)}</span><Status tone={t.status === "Rising" ? "green" : t.status === "Fading" ? "red" : "yellow"}>{t.status}</Status></div>
-                    <div className="flavor-score"><b>{t.recent}</b><span>sold</span></div>
-                    <div className="flavor-bar"><i style={{ width: `${(t.recent / maxRecent) * 100}%` }} /></div>
-                  </button>
-                ))}
-              </div>
-              <p className="source-note">From {sales.length.toLocaleString("en-CA")} sales in the last four weeks{noteCount ? `, including ${noteCount} order notes` : ""}. Today isn't counted until it's over.</p>
-            </div>
-            <article className="flavor-detail">
-              <span className="eyebrow">{item.status === "Rising" ? "Picking up" : item.status === "Fading" ? "Slowing down" : "Holding steady"}</span>
-              <div className="flavor-name">{nameOf(item.id)}</div>
-              <div className="quote-mark">“</div>
-              <p>{item.notes[0]
-                ? `${item.notes[0].note}${item.notes[0].who ? ` (${item.notes[0].who})` : ""}`
-                : `${item.recent} sold in the last two weeks, ${item.prior ? `${item.change >= 0 ? "up" : "down"} ${pct}% on the ${item.prior} the two weeks before` : "and none the two weeks before"}.`}</p>
-              {item.notes.length > 1 && <ul className="note-list">{item.notes.slice(1, 4).map((n) => <li key={n.ts + n.note}>“{n.note}”{n.who ? ` · ${n.who}` : ""}</li>)}</ul>}
-              <div className="detail-stat"><b>{item.recent}</b><span>sold in 14 days · {money0(item.revenue)}{item.prior ? ` · ${item.change >= 0 ? "+" : "−"}${pct}%` : ""}</span></div>
-              <Button disabled={featured === item.id} onClick={() => { setFeatured(item.id); showToast(`${nameOf(item.id)} will be featured on Saturday.`); }}>
-                {featured === item.id ? <><Icon name="check" /> Featured on Saturday</> : <>Feature it on Saturday <Icon name="arrow" /></>}
-              </Button>
-            </article>
           </div>
         </>
       );
@@ -664,7 +598,7 @@ export default function App() {
               {waiting.length > 0 && <p className="queue-note"><b>{waiting.length}</b> {waiting.length === 1 ? "order is" : "orders are"} waiting at the counter</p>}
             </article>
             <button className="quick-link quick-flavor" onClick={() => navigate("plan")}><div><span>Week plan</span><b>{weekly ? `${fmtDay(weekly.run.weekStart)} to ${fmtDay(weekly.run.weekEnd)}` : "Not made yet"}</b></div><Icon name="arrow" /></button>
-            <button className="quick-link quick-partner" onClick={() => navigate("flavors")}><div><span>Picking up</span><b>{trends.filter((t) => t.status === "Rising").slice(0, 2).map((t) => nameOf(t.id)).join(", ") || "Nothing rising this fortnight"}</b></div><Icon name="arrow" /></button>
+            <button className="quick-link quick-partner" onClick={() => navigate("marketing")}><div><span>New neighbors</span><b>{partners.length} places to say hello to</b></div><Icon name="arrow" /></button>
           </div>
         </div>
       </>
