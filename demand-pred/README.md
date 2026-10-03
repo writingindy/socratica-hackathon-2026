@@ -10,6 +10,7 @@ It only reads the till's database and never writes to it. There is no frontend.
 cd demand-pred
 node forecast.js            # make a weekly plan now (7 days from tomorrow), print the note, save it
 node forecast.js --rolling  # make a rolling forecast now (7 days from today)
+node forecast.js --backfill 28   # fill past days that have no forecast (see below)
 node forecast.js --watch    # stay running: a weekly plan every Sunday at 5 pm, a rolling forecast every day
 node forecast.js --note     # print the latest saved note
 node forecast.js --pantry flour=2 butter=4.5   # record what is already on the shelf, in packs
@@ -30,6 +31,8 @@ There are two kinds of run, told apart by `forecast_runs.kind`:
 
 - **weekly** is the shopping plan: the 7 days from the day after it's made, plus the shopping list and the note. It's made once a week.
 - **rolling** is the 7 days from today, made fresh each day, so a screen can always show a week that starts today.
+
+**Backfill.** A day before demand-pred was first started has no forecast. `--backfill` works out the rolling forecast each of those days would have had that morning. It uses only the sales from before the day, so it never sees the answer. These runs are saved with `reason = 'backfill'` and `created` set to the start of that day. `--watch` fills the last 28 days by itself when it starts. Days that already have a forecast are left alone.
 
 `--watch` checks every 10 minutes. If the server was off at plan time, it makes the plan as soon as it starts again. A run made by hand after the last plan time counts as that week's plan.
 

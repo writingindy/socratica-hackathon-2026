@@ -5,6 +5,7 @@
 
    node forecast.js                  make a weekly plan now (the 7 days from tomorrow) and print the note
    node forecast.js --rolling        make a rolling forecast now (the 7 days from today)
+   node forecast.js --backfill 28    work out the rolling forecast each of the last 28 days would have had, from the sales before it
    node forecast.js --watch          stay running: a weekly plan every Sunday 5 pm by default, and a rolling forecast every day
    node forecast.js --note           print the latest stored note
    node forecast.js --pantry flour=2 butter=4.5   record what is on the shelf, in packs */
@@ -96,8 +97,9 @@ function openStore() {
 function tx(db, fn) { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } }
 
 /* ---------- one run ---------- */
-function makePlan(db, kind, reason) {
-  const now = Date.now(), lines = readSales();
+/* asOf: when the run counts as made. A backfill passes the start of a past day and only the sales before it */
+function makePlan(db, kind, reason, asOf = Date.now(), lines = readSales()) {
+  const now = asOf;
   const series = model.dailySeries(lines, now);
   if (series.days.length < 14) throw new Error('Only ' + series.days.length + ' days of sales so far. Needs at least 14 to forecast.');
   /* every item in the catalog, plus anything the till sold that the catalog does not know yet */
@@ -134,6 +136,18 @@ function runDue(db, kind, since, verbose) {
   try { const r = makePlan(db, kind, last ? 'scheduled' : 'first run'); console.log(`[${new Date().toLocaleString('en-CA')}] Saved ${r.id}` + (verbose ? `\n\n${r.note}\n` : '')); }
   catch (e) { console.error(`[${new Date().toLocaleString('en-CA')}] ${kind} forecast failed: ${e.message}`); }
 }
+/* past days with no rolling forecast get the one it would have made that morning, from the sales before that day only */
+function backfill(db, days) {
+  const all = readSales(), today = model.startOfDay(Date.now()), has = db.prepare("SELECT 1 FROM forecast_runs WHERE kind = 'rolling' AND week_start = ?");
+  let made = 0;
+  for (let k = days; k >= 1; k--) {
+    const start = model.startOfDay(model.addDays(today, -k));
+    if (has.get(model.dayKey(start))) continue;
+    try { makePlan(db, 'rolling', 'backfill', start, all.filter(l => l.ts < start)); made++; }
+    catch (e) { /* too little history before that day */ }
+  }
+  return made;
+}
 function tick(db) { const now = Date.now(); runDue(db, 'weekly', lastSlot(now), true); runDue(db, 'rolling', model.startOfDay(now), false); }
 
 /* ---------- command line ---------- */
@@ -152,9 +166,11 @@ function main() {
   if (args[0] === '--watch') {
     const next = new Date(lastSlot(Date.now()) + 7 * model.DAY_MS);
     console.log(`Weekly plan: every ${WD[PLAN_DAY]} at ${PLAN_HOUR}:00. Next ${next.toLocaleString('en-CA')}\nRolling 7-day forecast: every day just after midnight\n  Reads:  ${TILL_DB}\n  Writes: ${FORECAST_DB}`);
+    const filled = backfill(db, 28); if (filled) console.log(`Filled in ${filled} past days that had no forecast, from the sales before each one.`);
     tick(db); setInterval(() => tick(db), 10 * 60000);
     return;
   }
+  if (args[0] === '--backfill') { const n = Math.max(1, Math.min(365, Number(args[1]) || 28)); console.log(`Filled in ${backfill(db, n)} of the last ${n} days. Days that already had a forecast were left alone.`); return; }
   if (args[0] === '--rolling') { const r = makePlan(db, 'rolling', 'manual'); console.log('Saved ' + r.id + ': the 7 days from today, in ' + path.relative(process.cwd(), FORECAST_DB)); return; }
   const r = makePlan(db, 'weekly', 'manual');
   console.log(r.note + '\n\nSaved as ' + r.id + ' in ' + path.relative(process.cwd(), FORECAST_DB));
