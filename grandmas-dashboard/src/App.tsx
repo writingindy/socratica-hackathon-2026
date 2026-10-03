@@ -152,6 +152,7 @@ export default function App() {
   const [pastDay, setPastDay] = useState(() => shiftDay(dayKeyOf(new Date()), -1));
   const [pastForecast, setPastForecast] = useState<RollingForecast | null>(null);
   const [pastSales, setPastSales] = useState<Sale[] | null>(null);
+  const [pastError, setPastError] = useState("");
 
   /* forecasts change at most once a day, so check every 10 minutes and whenever the tab comes back */
   useEffect(() => {
@@ -238,9 +239,10 @@ export default function App() {
     if (page !== "history") return;
     let live = true;
     const from = parseDay(pastDay).getTime(), to = parseDay(shiftDay(pastDay, 1)).getTime();
-    setPastForecast(null); setPastSales(null);
+    setPastForecast(null); setPastSales(null); setPastError("");
     api.dayForecast(pastDay).then((f) => live && setPastForecast(f), () => live && setPastForecast(null));
-    api.sales({ since: from }).then((all) => live && setPastSales(all.filter((x) => x.ts < to)), () => live && setPastSales([]));
+    /* a failed load is not the same as a day with no sales, so say so */
+    api.sales({ since: from }).then((all) => live && setPastSales(all.filter((x) => x.ts < to)), (e: Error) => { if (live) { setPastSales([]); setPastError(e.message); } });
     return () => { live = false; };
   }, [page, pastDay]);
 
@@ -396,8 +398,10 @@ export default function App() {
             {!isToday && <Button variant="text" onClick={() => setPastDay(todayKey)}>Go to today</Button>}
           </div>
           <h2 className="past-title">{isToday ? `Today, ${longDay}` : longDay}</h2>
-          {pastSales === null ? <p className="source-note">Loading…</p> : items.length === 0 && drinks === 0 ? (
-            <article className="empty-card"><div className="row-title">Nothing for this day</div><p>No forecast was made and nothing was sold.</p></article>
+          {pastSales === null ? <p className="source-note">Loading…</p> : pastError ? (
+            <article className="empty-card"><div className="row-title">Couldn't load this day</div><p>The sales didn't load ({pastError}). Check the dashboard is running with <code>npm run dev</code> from the repository root, then try again.</p></article>
+          ) : items.length === 0 && drinks === 0 ? (
+            <article className="empty-card"><div className="row-title">Nothing for this day</div><p>No sales were recorded on this day, so there was nothing to forecast from either.</p></article>
           ) : (
             <>
               <div className="plan-stats">
@@ -424,7 +428,9 @@ export default function App() {
                     </tbody>
                   </table>
                 </div>
-                {pastForecast && <p className="source-note">Forecast made {new Date(pastForecast.run.created).toLocaleString("en-CA", { weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.</p>}
+                {pastForecast && <p className="source-note">{pastForecast.run.reason === "backfill"
+                  ? `Worked out afterwards, using only the sales from before ${fmtDay(pastDay, { weekday: "long", month: "short", day: "numeric" })}, so it is what the forecast would have said that morning.`
+                  : `Forecast made ${new Date(pastForecast.run.created).toLocaleString("en-CA", { weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.`}</p>}
               </section>
             </>
           )}
@@ -576,7 +582,7 @@ export default function App() {
             </article>
             <div className="quick-links">
               <button className="quick-link quick-plan" onClick={() => navigate("plan")}><div><span>Week plan</span><b>{weekly ? `${fmtDay(weekly.run.weekStart)} to ${fmtDay(weekly.run.weekEnd)}` : "Not made yet"}</b></div><Icon name="arrow" /></button>
-              <button className="quick-link quick-partner" onClick={() => navigate("marketing")}><div><span>New neighbors</span><b>3 places to say hello to</b></div><Icon name="arrow" /></button>
+              <button className="quick-link quick-partner" onClick={() => navigate("marketing")}><div><span>New neighbors</span><b>{partners.length} places to say hello to</b></div><Icon name="arrow" /></button>
             </div>
           </div>
           <div className="today-side">
@@ -597,8 +603,6 @@ export default function App() {
               <p>{payCount("card")} card · {payCount("cash")} cash{unpaid ? ` · ${money(unpaid)} still to pay` : ""}{discounts ? ` · ${money(discounts)} in discounts` : ""}</p>
               {waiting.length > 0 && <p className="queue-note"><b>{waiting.length}</b> {waiting.length === 1 ? "order is" : "orders are"} waiting at the counter</p>}
             </article>
-            <button className="quick-link quick-flavor" onClick={() => navigate("plan")}><div><span>Week plan</span><b>{weekly ? `${fmtDay(weekly.run.weekStart)} to ${fmtDay(weekly.run.weekEnd)}` : "Not made yet"}</b></div><Icon name="arrow" /></button>
-            <button className="quick-link quick-partner" onClick={() => navigate("marketing")}><div><span>New neighbors</span><b>{partners.length} places to say hello to</b></div><Icon name="arrow" /></button>
           </div>
         </div>
       </>
