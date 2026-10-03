@@ -1,6 +1,6 @@
 # Grandma's Dashboard
 
-Grandma's owner dashboard: what to bake today, supplies to order, what's selling and local marketing. React + Vite + Tailwind, first designed in Figma Make.
+Grandma's owner dashboard: what to bake today, supplies to order and local marketing. React + Vite + Tailwind, first designed in Figma Make.
 
 It uses the same database as [Grandma's Till](../grandmas-till/), kept in the shared [`data/`](../data/) folder, so every sale rung up on the till shows up here.
 
@@ -47,7 +47,6 @@ Today, Bake, Week plan, Past days and Order read real forecasts. Without demand-
 These come straight from the till's sales:
 
 - **Today:** live takings (card, cash, still to pay, discounts) and how many orders are waiting at the counter. It updates as orders are placed and handed over.
-- **Trends:** each item's last two weeks against the two before (rising, steady or fading), with the notes customers left on their orders.
 - **New order:** the till's own menu and prices. Charging sends the order to the till, which numbers it; with a name for pickup, it joins the till's make queue. This page needs the till running.
 
 Marketing (`partners` at the top of `src/App.tsx`) is still a placeholder. Replace it with calls to `src/api.ts`. If you need data the API doesn't have yet, add the endpoint to `grandmas-till/server.js`.
