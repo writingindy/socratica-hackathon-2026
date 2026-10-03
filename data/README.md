@@ -23,9 +23,12 @@ Only the till server adds sales and members, because it checks prices, numbers e
 ## Tables
 
 ```sql
-sales      (id, ts, total, pay, member_id, src, order_no, name, status)
+sales      (id, ts, total, pay, member_id, src, order_no, name, status, discount, discount_kind)
            -- src: sim (simulated history), till, kiosk.  status: new, ready, done.  pay: card, cash, pending
-sale_lines (sale_id, item_id, qty, price)   -- one row per item on a sale
+           -- total is after the discount. discount is the dollars taken off; discount_kind: member, pct20, comp, amount
+sale_lines (sale_id, item_id, qty, price, opts, note)
+           -- one row per item on a sale. price is per unit and includes any paid options
+           -- opts: comma-separated option ids such as oat,iced (see OPTION_GROUPS in core.js). note: free text
 members    (id, num, name, joined, sample)
 ```
 

@@ -41,21 +41,30 @@ function readBody(req) {
     req.on('error', reject);
   });
 }
-/* never trust the client for prices, time or order numbers: the server looks up the menu, stamps the sale and numbers it.
+/* never trust the client for prices, discounts, time or order numbers: the server looks up the menu and options, works out
+   the discount, stamps the sale and numbers it.
    An order with a name goes to the make queue (status new); a counter sale without one is handed over on the spot (done). */
 const STATUSES = ['new', 'ready', 'done'];
 function cleanSale(b) {
   if (!b || !Array.isArray(b.lines)) throw bad('lines must be a list of {id, q}');
   const lines = [];
-  for (const l of b.lines.slice(0, 20)) { const it = core.MENU[core.IDX[l && l.id]], q = Math.floor(Number(l && l.q)); if (it && q >= 1 && q <= 50) lines.push({ id: it.id, q, p: it.price }); }
+  for (const l of b.lines.slice(0, 20)) {
+    const it = core.MENU[core.IDX[l && l.id]], q = Math.floor(Number(l && l.q)); if (!it || !(q >= 1 && q <= 50)) continue;
+    const opts = core.cleanOpts(it.id, l.opts), note = core.cleanNote(l.note), line = { id: it.id, q, p: core.linePrice(it.id, opts) };
+    if (opts.length) line.opts = opts; if (note) line.note = note; lines.push(line);
+  }
   if (!lines.length) throw bad('no valid lines');
   const id = typeof b.id === 'string' && /^[A-Za-z0-9_-]{6,40}$/.test(b.id) ? b.id : 's' + crypto.randomBytes(8).toString('hex');
   const src = b.src === 'kiosk' ? 'kiosk' : 'till', name = typeof b.name === 'string' ? b.name.trim().slice(0, 30) : '';
   if (src === 'kiosk' && !name) throw bad('kiosk orders need a name to call out');
   const pay = b.pay === 'cash' ? 'cash' : b.pay === 'pending' ? 'pending' : 'card';
   if (pay === 'pending' && !name) throw bad('an order paid later needs a name');
-  const ts = Date.now();
-  return { id, ts, lines, total: core.saleTotal(lines), pay, m: typeof b.m === 'string' && b.m.length <= 40 ? b.m : null, src, no: store.nextOrderNo(core.startOfDay(ts)), name: name || null, status: name ? 'new' : 'done' };
+  const m = typeof b.m === 'string' && store.listMembers().some(x => x.id === b.m) ? b.m : null;
+  const d = b.discount && typeof b.discount === 'object' ? b.discount : null, kind = d && core.DISCOUNTS[d.kind] ? d.kind : null;
+  if (kind && core.DISCOUNTS[kind].member && !m) throw bad('the member discount needs a member on the order');
+  if (kind && src === 'kiosk' && kind !== 'member') throw bad('only the member discount can be used on the customer screen');
+  const subtotal = core.saleTotal(lines), discount = kind ? core.discountAmount(kind, subtotal, d.value) : 0, ts = Date.now();
+  return { id, ts, lines, total: core.round2(subtotal - discount), pay, m, src, no: store.nextOrderNo(core.startOfDay(ts)), name: name || null, status: name ? 'new' : 'done', discount, discountKind: discount ? kind : null };
 }
 /* Grandma moves an order along the queue and takes payment for pay-at-counter orders */
 function patchSale(cur, b) {
@@ -73,7 +82,7 @@ function patchSale(cur, b) {
 async function api(req, res, url) {
   const route = req.method + ' ' + url.pathname;
   if (route === 'GET /api/health') return send(res, 200, { ok: true, store: store.kind, file: store.file });
-  if (route === 'GET /api/menu') return send(res, 200, core.MENU.map(({ id, name, cat, price, fresh }) => ({ id, name, cat, price, fresh: !!fresh })));
+  if (route === 'GET /api/menu') return send(res, 200, core.MENU.map(({ id, name, cat, price, fresh }) => ({ id, name, cat, price, fresh: !!fresh, options: core.optionGroups(id).map(g => ({ group: g, label: core.OPTION_GROUPS[g].label, one: !!core.OPTION_GROUPS[g].one, choices: core.OPTION_GROUPS[g].choices.map(([cid, cname, cprice]) => ({ id: cid, name: cname, price: cprice })) })) })));
   if (route === 'GET /api/sales') { const src = url.searchParams.get('src'); return send(res, 200, store.listSales(Number(url.searchParams.get('since')) || 0, src === 'live' || src === 'till')); }
   if (route === 'POST /api/sales') {
     const sale = cleanSale(await readBody(req));

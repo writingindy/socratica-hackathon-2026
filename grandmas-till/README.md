@@ -78,13 +78,17 @@ In the queue Grandma taps **Mark ready** (`new` → `ready`), then **Handed over
 `POST /api/sales` body:
 
 ```json
-{"lines":[{"id":"croissant","q":2}], "pay":"card", "src":"kiosk", "name":"Rosa", "m":"m1004"}
+{"lines":[{"id":"latte","q":2,"opts":["oat","shot"],"note":"extra hot"}],
+ "pay":"card", "src":"kiosk", "name":"Rosa", "m":"m1004", "discount":{"kind":"member"}}
 ```
 
 - `pay`: `card`, `cash`, or `pending` (pay at the counter, which needs a `name`).
 - `src`: `kiosk` for the customer screen, otherwise `till`. Kiosk orders need a `name`.
 - `name`: optional from the counter. If it's there, the order goes to the queue.
-- `m`: optional member id.
+- `m`: optional member id. An id that isn't a known member is dropped.
+- `lines[].opts`: optional option ids for that item, from `OPTION_GROUPS` in `core.js`, also listed per item by `GET /api/menu`. The server drops any the item doesn't offer and adds their prices.
+- `lines[].note`: optional free text, up to 80 characters.
+- `discount`: optional. `{"kind":"member"}` (10%, needs `m`), `{"kind":"pct20"}`, `{"kind":"comp"}` (on the house) or `{"kind":"amount","value":2.5}`. The customer screen may only use `member`. The server works out the amount; `total` is after the discount.
 - `id`: optional, from the client. Sending the same id twice returns the order already saved instead of making a second one.
 
 Try it without the page:
@@ -122,7 +126,7 @@ sqlite3 ../data/till.db "SELECT src, COUNT(*), ROUND(SUM(total), 2) FROM sales W
 2. **Phone:** add a parfait and a latte, check out as "Rosa" with member number `1004`, and choose *At the counter*. The phone shows order #1, "being made".
 3. **Laptop:** a toast announces the order, and it appears under **Orders → To make**. Tap *Mark ready*. The phone switches to "Ready" straight away.
 4. **Laptop:** tap *Took cash · hand over*. The phone says "Enjoy!", and **Today** shows the cash.
-5. **Ring up** a croissant at the counter with no name: it's saved and handed over at once. Add a name instead and it joins the queue.
+5. **Ring up** a latte at the counter, tap *Options & note* on its receipt line, and pick oat milk and an extra shot. Attach member `1004`: Member 10% switches on by itself. Charge it with no name and it's handed over at once; add a name instead and it joins the queue, with the options and note on its card.
 6. *Simulate 3 customers* on the Orders tab fills the queue for a busier demo.
 
 ## Working as a team
@@ -159,3 +163,5 @@ Any host that runs Node works. Point it at this repository, set its **Root Direc
 ## What is simulated
 
 The menu, prices, six weeks of sales history and the 40 sample members are sample data. Card payments on the customer screen are a short animation; no card is charged.
+
+Cupcake icon (`public/cupcake.svg`) by Verra Prania from [Noun Project](https://thenounproject.com/) (CC BY 3.0).

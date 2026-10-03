@@ -18,6 +18,42 @@ const MENU = [
   { id: 'soda', name: 'Yuzu Soda', cat: 'Drinks', price: 4, v: [.6, 0, 0, 0, .7, 0, 0], w: .5, dp: [.3, 1.2, 1.2], fresh: 0, layers: ['#f4e27a', '#f9efae', '#fcf7d6', '#ffffff'] },
 ];
 const IDX = Object.fromEntries(MENU.map((m, i) => [m.id, i]));
+
+/* options per item. A group marked one: true allows at most one of its choices; leaving it empty means the usual
+   (whole milk, hot, regular ice). Each choice is [id, name, added price]; ids are unique across all groups. */
+const OPTION_GROUPS = {
+  milk: { label: 'Milk', one: true, choices: [['oat', 'Oat milk', .5], ['almond', 'Almond milk', .5]] },
+  temp: { label: 'Temperature', one: true, choices: [['iced', 'Iced', 0]] },
+  coffee: { label: 'Extras', choices: [['shot', 'Extra shot', .75], ['caramel', 'Caramel syrup', .5]] },
+  sweet: { label: 'Extras', choices: [['honey', 'Honey', .25]] },
+  ice: { label: 'Ice', one: true, choices: [['light_ice', 'Light ice', 0], ['no_ice', 'No ice', 0]] },
+  topping: { label: 'Toppings', choices: [['fruit', 'Extra fruit', 1], ['granola', 'Granola crunch', .5], ['no_nuts', 'No nuts', 0]] },
+  serve: { label: 'Serve', choices: [['warm', 'Warmed up', 0]] },
+};
+const ITEM_OPTIONS = { latte: ['milk', 'temp', 'coffee'], tea: ['temp', 'sweet'], soda: ['ice'], croissant: ['serve'], almond: ['serve'] };
+const OPTION = {};
+for (const g in OPTION_GROUPS) for (const [id, name, price] of OPTION_GROUPS[g].choices) OPTION[id] = { id, name, price, group: g };
+function optionGroups(itemId) { const it = MENU[IDX[itemId]]; return !it ? [] : (it.cat === 'Parfaits' ? ['topping'] : ITEM_OPTIONS[itemId] || []); }
+/* keep only options this item offers, one per one-only group, in a fixed order */
+function cleanOpts(itemId, opts) {
+  const groups = optionGroups(itemId), used = new Set(), out = [];
+  for (const id of Array.isArray(opts) ? opts : []) { const o = OPTION[id]; if (!o || !groups.includes(o.group) || out.includes(id)) continue; if (OPTION_GROUPS[o.group].one) { if (used.has(o.group)) continue; used.add(o.group); } out.push(id); }
+  return out.sort((a, b) => Object.keys(OPTION).indexOf(a) - Object.keys(OPTION).indexOf(b));
+}
+function linePrice(itemId, opts) { let p = MENU[IDX[itemId]].price; for (const id of opts || []) p += OPTION[id] ? OPTION[id].price : 0; return round2(p); }
+function cleanNote(note) { return typeof note === 'string' ? note.replace(/\s+/g, ' ').trim().slice(0, 80) : ''; }
+
+/* discounts. The kiosk only ever gets the member discount, and only with a member attached; the server enforces both. */
+const DISCOUNTS = {
+  member: { label: 'Member 10%', pct: 10, member: true },
+  pct20: { label: '20% off', pct: 20 },
+  comp: { label: 'On the house', pct: 100 },
+  amount: { label: 'Dollar amount' },
+};
+function discountAmount(kind, subtotal, value) {
+  const d = DISCOUNTS[kind]; if (!d) return 0;
+  return d.pct ? round2(subtotal * d.pct / 100) : clamp(round2(Number(value) || 0), 0, subtotal);
+}
 const OPEN = 8, CLOSE = 18, HIST_DAYS = 42, DAY_MS = 86400000;
 const WD_MULT = [1.05, .78, .86, .95, 1, 1.18, 1.38];
 const HOURS_WD = [.9, .8, .6, .8, 1.5, 1.3, .9, 1.3, 1.1, .6];
@@ -91,4 +127,4 @@ function simulate(now, members) {
 }
 
 /* the server loads this same file, so every screen and the API agree on the menu and prices */
-if (typeof module !== 'undefined' && module.exports) module.exports = { DIMS, MENU, IDX, OPEN, CLOSE, HIST_DAYS, DAY_MS, dayKey, startOfDay, saleTotal, sampleMembers, makeBasket, simulate };
+if (typeof module !== 'undefined' && module.exports) module.exports = { DIMS, MENU, IDX, OPTION_GROUPS, OPTION, optionGroups, cleanOpts, linePrice, cleanNote, DISCOUNTS, discountAmount, round2, OPEN, CLOSE, HIST_DAYS, DAY_MS, dayKey, startOfDay, saleTotal, sampleMembers, makeBasket, simulate };

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { api, subscribe, type DayForecast, type RollingForecast, type Sale, type SupplyLine, type WeeklyPlan } from "./api";
+import { api, subscribe, type DayForecast, type MenuItem, type RollingForecast, type Sale, type SupplyLine, type WeeklyPlan } from "./api";
 
-type Page = "today" | "bake" | "plan" | "history" | "order" | "marketing" | "counter";
+type Page = "today" | "bake" | "plan" | "history" | "order" | "flavors" | "marketing" | "counter";
 
 const pages: { id: Page; label: string; icon: string }[] = [
   { id: "today", label: "Today", icon: "home" },
@@ -9,6 +9,7 @@ const pages: { id: Page; label: string; icon: string }[] = [
   { id: "plan", label: "Week plan", icon: "calendar" },
   { id: "history", label: "Past days", icon: "clock" },
   { id: "order", label: "Order", icon: "box" },
+  { id: "flavors", label: "Trends", icon: "spark" },
   { id: "marketing", label: "Marketing", icon: "heart" },
 ];
 
@@ -18,14 +19,10 @@ const partners = [
   { name: "Yoga studio on Main", walk: "4 minute walk", reason: "A sweet treat after class.", kind: "sun" },
 ];
 
-const menu = [
-  { name: "Fall Parfait", price: 7.5, tone: "pink" },
-  { name: "Cider donut", price: 4, tone: "yellow" },
-  { name: "Maple scone", price: 3.75, tone: "blue" },
-  { name: "Cookie", price: 3, tone: "green" },
-  { name: "Muffin", price: 3.5, tone: "red" },
-  { name: "Coffee", price: 3.25, tone: "cream" },
-];
+/* menu card colours, in menu order */
+const TONES = ["pink", "yellow", "blue", "green", "red", "cream"];
+/* an item counts as rising or fading when its last two weeks differ from the two before by this much */
+const TREND_STEP = 0.15;
 
 /* ----- dates: forecasts use local "YYYY-MM-DD" day keys ----- */
 const DAY_MS = 86400000;
@@ -144,11 +141,18 @@ export default function App() {
   const [bakeApproved, setBakeApproved] = useState(false);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [orderSent, setOrderSent] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  const [featured, setFeatured] = useState<string | null>(null);
+  const [menu, setMenu] = useState<MenuItem[]>([]);
+  const [menuError, setMenuError] = useState("");
   const [selectedPartner, setSelectedPartner] = useState(0);
   const [sentPartners, setSentPartners] = useState<string[]>([]);
   const [outreach, setOutreach] = useState(true);
   const [cart, setCart] = useState<Record<string, number>>({});
-  const [phone, setPhone] = useState("");
+  const [pickup, setPickup] = useState("");
+  const [payKind, setPayKind] = useState<"card" | "cash">("card");
+  const [charging, setCharging] = useState(false);
+  const [lastOrder, setLastOrder] = useState<Sale | null>(null);
   const [toast, setToast] = useState("");
   const [pastDay, setPastDay] = useState(() => shiftDay(dayKeyOf(new Date()), -1));
   const [pastForecast, setPastForecast] = useState<RollingForecast | null>(null);
@@ -169,9 +173,19 @@ export default function App() {
 
   /* the last four weeks of sales, for "sold today" and the same-weekday history; new sales arrive live from the till */
   useEffect(() => {
-    api.sales({ since: startOfToday() - 28 * DAY_MS }).then(setSales, () => setSales([]));
+    const load = () => api.sales({ since: startOfToday() - 28 * DAY_MS }).then(setSales, () => setSales([]));
+    load();
     const add = (s: Sale) => setSales((current) => (current.some((x) => x.id === s.id) ? current : [...current, s]));
-    try { return subscribe({ sale: add }); } catch { return undefined; }
+    const update = (s: Sale) => setSales((current) => current.map((x) => (x.id === s.id ? s : x)));
+    try { return subscribe({ sale: add, update, clear: load }); } catch { return undefined; }
+  }, []);
+
+  /* the menu (names, prices, options) comes from the till, so the New order page sells exactly what the till sells */
+  useEffect(() => {
+    const load = () => api.menu().then((m) => { setMenu(m); setMenuError(""); }, (e: Error) => setMenuError(e.message));
+    load();
+    window.addEventListener("focus", load);
+    return () => window.removeEventListener("focus", load);
   }, []);
 
   const todayKey = dayKeyOf(new Date(now));
@@ -199,6 +213,41 @@ export default function App() {
   const todayStart = parseDay(todayKey).getTime();
   const todaySales = sales.filter((s) => s.ts >= todayStart);
   const soldToday = todaySales.reduce((t, s) => t + s.lines.reduce((n, l) => n + (madeAhead.has(l.id) ? l.q : 0), 0), 0);
+
+  const names = useMemo(() => {
+    const out = new Map<string, string>((rolling?.forecasts ?? []).map((r) => [r.itemId, r.itemName]));
+    for (const m of menu) out.set(m.id, m.name);
+    return out;
+  }, [menu, rolling]);
+  const nameOf = (id: string) => names.get(id) ?? id;
+
+  /* today's takings, live: simulated sales stand in for the rest of the day's customers */
+  const takings = todaySales.filter((s) => s.pay !== "pending").reduce((t, s) => t + s.total, 0);
+  const unpaid = todaySales.filter((s) => s.pay === "pending").reduce((t, s) => t + s.total, 0);
+  const discounts = todaySales.reduce((t, s) => t + (s.discount || 0), 0);
+  const payCount = (p: Sale["pay"]) => todaySales.filter((s) => s.pay === p).length;
+  const waiting = todaySales.filter((s) => s.src !== "sim" && s.status !== "done");
+
+  /* what's selling: each item's last 14 full days against the 14 before, plus the notes customers left on their orders */
+  const trends = useMemo(() => {
+    const recentFrom = todayStart - 14 * DAY_MS, priorFrom = todayStart - 28 * DAY_MS;
+    const by = new Map<string, { id: string; recent: number; prior: number; revenue: number; notes: { note: string; ts: number; who: string | null }[] }>();
+    const get = (id: string) => { let t = by.get(id); if (!t) { t = { id, recent: 0, prior: 0, revenue: 0, notes: [] }; by.set(id, t); } return t; };
+    for (const m of menu) get(m.id);
+    for (const s of sales) {
+      for (const l of s.lines) {
+        const t = get(l.id);
+        if (s.ts >= recentFrom && s.ts < todayStart) { t.recent += l.q; t.revenue += l.q * l.p; }
+        else if (s.ts >= priorFrom && s.ts < recentFrom) t.prior += l.q;
+        if (l.note) t.notes.push({ note: l.note, ts: s.ts, who: s.name });
+      }
+    }
+    return [...by.values()].map((t) => {
+      const change = t.prior ? (t.recent - t.prior) / t.prior : t.recent ? 1 : 0;
+      const status = change >= TREND_STEP ? "Rising" : change <= -TREND_STEP ? "Fading" : "Steady";
+      return { ...t, change, status, notes: t.notes.sort((a, b) => b.ts - a.ts) };
+    }).sort((a, b) => b.recent - a.recent);
+  }, [sales, menu, todayStart]);
 
   /* units sold on each of the last four same weekdays, newest first */
   const lastFour = useMemo(() => {
@@ -241,16 +290,29 @@ export default function App() {
   const selectedSupplies = toBuy.filter((s) => selected[s.id]);
   const orderTotal = selectedSupplies.reduce((total, item) => total + item.cost, 0);
   const bakeTotal = bakes.reduce((total, item) => total + item.amount, 0);
-  const cartRows = menu.filter((item) => cart[item.name]).map((item) => ({ ...item, quantity: cart[item.name] }));
+  const cartRows = menu.filter((item) => cart[item.id]).map((item) => ({ ...item, quantity: cart[item.id] }));
   const cartTotal = cartRows.reduce((total, item) => total + item.price * item.quantity, 0);
   const selectedPartnerData = partners[selectedPartner];
   const draft = `Hi! We're Grandma's Bakeria, a ${selectedPartnerData.walk.toLowerCase()} from ${selectedPartnerData.name}. Bring your group in this week for a free Fall Parfait tasting. Hope to see you. — Grandma`;
   const weekdayName = parseDay(todayKey).toLocaleDateString("en-CA", { weekday: "long" });
 
-  const chargeOrder = () => {
-    setCart({});
-    showToast(phone ? "Order saved. Receipt texted." : "Order saved at the counter.");
-    setPhone("");
+  /* orders go through the till, which prices them, numbers them and puts named ones in its make queue */
+  const chargeOrder = async () => {
+    if (charging || !cartRows.length) return;
+    setCharging(true);
+    try {
+      const o = await api.addSale({
+        id: "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+        lines: cartRows.map((r) => ({ id: r.id, q: r.quantity })),
+        pay: payKind,
+        name: pickup.trim() || undefined,
+      });
+      setCart({}); setPickup(""); setLastOrder(o);
+      showToast(o.status === "new" ? `Order #${o.no} for ${o.name} is in the till's queue.` : `Order #${o.no} saved: ${money(o.total)} by ${o.pay}.`);
+    } catch (e) {
+      showToast(`Not saved: ${(e as Error).message}. Is the till running?`);
+    }
+    setCharging(false);
   };
 
   const renderScreen = () => {
@@ -436,6 +498,46 @@ export default function App() {
       );
     }
 
+    if (page === "flavors") {
+      const item = trends.find((t) => t.id === selectedItem) ?? trends[0];
+      const maxRecent = Math.max(1, ...trends.map((t) => t.recent));
+      const noteCount = trends.reduce((n, t) => n + t.notes.length, 0);
+      if (!item) return <><PageHeader title="What's selling" subtitle="The last two weeks against the two before." /><NoForecast what="sales" error="No sales in the last four weeks." /></>;
+      const pct = Math.round(Math.abs(item.change) * 100);
+      return (
+        <>
+          <PageHeader title="What's selling" subtitle="Each item's last two weeks against the two weeks before, from the till's sales." />
+          <div className="flavor-layout">
+            <div>
+              <div className="flavor-list">
+                {trends.map((t) => (
+                  <button className={`flavor-row ${item.id === t.id ? "is-selected" : ""}`} key={t.id} onClick={() => setSelectedItem(t.id)}>
+                    <div><span className="row-title">{nameOf(t.id)}</span><Status tone={t.status === "Rising" ? "green" : t.status === "Fading" ? "red" : "yellow"}>{t.status}</Status></div>
+                    <div className="flavor-score"><b>{t.recent}</b><span>sold</span></div>
+                    <div className="flavor-bar"><i style={{ width: `${(t.recent / maxRecent) * 100}%` }} /></div>
+                  </button>
+                ))}
+              </div>
+              <p className="source-note">From {sales.length.toLocaleString("en-CA")} sales in the last four weeks{noteCount ? `, including ${noteCount} order notes` : ""}. Today isn't counted until it's over.</p>
+            </div>
+            <article className="flavor-detail">
+              <span className="eyebrow">{item.status === "Rising" ? "Picking up" : item.status === "Fading" ? "Slowing down" : "Holding steady"}</span>
+              <div className="flavor-name">{nameOf(item.id)}</div>
+              <div className="quote-mark">“</div>
+              <p>{item.notes[0]
+                ? `${item.notes[0].note}${item.notes[0].who ? ` (${item.notes[0].who})` : ""}`
+                : `${item.recent} sold in the last two weeks, ${item.prior ? `${item.change >= 0 ? "up" : "down"} ${pct}% on the ${item.prior} the two weeks before` : "and none the two weeks before"}.`}</p>
+              {item.notes.length > 1 && <ul className="note-list">{item.notes.slice(1, 4).map((n) => <li key={n.ts + n.note}>“{n.note}”{n.who ? ` · ${n.who}` : ""}</li>)}</ul>}
+              <div className="detail-stat"><b>{item.recent}</b><span>sold in 14 days · {money0(item.revenue)}{item.prior ? ` · ${item.change >= 0 ? "+" : "−"}${pct}%` : ""}</span></div>
+              <Button disabled={featured === item.id} onClick={() => { setFeatured(item.id); showToast(`${nameOf(item.id)} will be featured on Saturday.`); }}>
+                {featured === item.id ? <><Icon name="check" /> Featured on Saturday</> : <>Feature it on Saturday <Icon name="arrow" /></>}
+              </Button>
+            </article>
+          </div>
+        </>
+      );
+    }
+
     if (page === "marketing") {
       const hasSent = sentPartners.includes(selectedPartnerData.name);
       return (
@@ -477,35 +579,47 @@ export default function App() {
     if (page === "counter") {
       return (
         <>
-          <PageHeader title="New order" subtitle="Counter order. QR orders arrive in the same place." />
-          <div className="counter-layout">
-            <div className="menu-grid">
-              {menu.map((item) => (
-                <button className={`menu-item menu-${item.tone}`} key={item.name} onClick={() => setCart((current) => ({ ...current, [item.name]: (current[item.name] || 0) + 1 }))}>
-                  <span className="menu-doodle">{item.name.charAt(0)}</span>
-                  <span>{item.name}</span>
-                  <b>${item.price.toFixed(2)}</b>
-                </button>
-              ))}
-            </div>
-            <article className="cart-card">
-              <div className="cart-head"><div><span className="eyebrow">Current sale</span><div className="cart-title">Order #112</div></div><span>{cartRows.reduce((n, item) => n + item.quantity, 0)} items</span></div>
-              <div className="cart-lines">
-                {cartRows.length === 0 ? <div className="empty-cart"><Icon name="cart" /><p>Tap an item to<br />start the order.</p></div> : cartRows.map((item) => (
-                  <div className="cart-line" key={item.name}>
-                    <button onClick={() => setCart((current) => ({ ...current, [item.name]: Math.max(0, current[item.name] - 1) }))}>−</button>
-                    <b>{item.quantity}×</b><span>{item.name}</span><strong>${(item.price * item.quantity).toFixed(2)}</strong>
-                  </div>
+          <PageHeader title="New order" subtitle="Rung up through the till, so it gets a real order number and shows on every till screen." />
+          {menuError && !menu.length ? (
+            <article className="empty-card">
+              <span className="eyebrow">Can't reach the till</span>
+              <div className="row-title">The menu comes from Grandma's Till</div>
+              <p>{menuError}. Start the till in a terminal and this page fills in by itself:</p>
+              <code>cd grandmas-till && node server.js</code>
+            </article>
+          ) : (
+            <div className="counter-layout">
+              <div className="menu-grid">
+                {menu.map((item, i) => (
+                  <button className={`menu-item menu-${TONES[i % TONES.length]}`} key={item.id} onClick={() => setCart((current) => ({ ...current, [item.id]: (current[item.id] || 0) + 1 }))}>
+                    <span className="menu-doodle">{item.name.charAt(0)}</span>
+                    <span>{item.name}</span>
+                    <b>{money(item.price)}</b>
+                  </button>
                 ))}
               </div>
-              <div className="cart-total"><span>Total</span><b>${cartTotal.toFixed(2)}</b></div>
-              <label className="phone-field"><span>Phone for text receipt (optional)</span><input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="(555) 000-0000" /></label>
-              <div className="cart-actions">
-                <Button variant="secondary" onClick={() => setCart({})} disabled={!cartRows.length}>Clear</Button>
-                <Button disabled={!cartRows.length} onClick={chargeOrder}>Charge ${cartTotal.toFixed(2)}</Button>
-              </div>
-            </article>
-          </div>
+              <article className="cart-card">
+                <div className="cart-head"><div><span className="eyebrow">Current sale</span><div className="cart-title">{lastOrder ? `After #${lastOrder.no}` : "New order"}</div></div><span>{cartRows.reduce((n, item) => n + item.quantity, 0)} items</span></div>
+                <div className="cart-lines">
+                  {cartRows.length === 0 ? <div className="empty-cart"><Icon name="cart" /><p>Tap an item to<br />start the order.</p></div> : cartRows.map((item) => (
+                    <div className="cart-line" key={item.id}>
+                      <button onClick={() => setCart((current) => ({ ...current, [item.id]: Math.max(0, current[item.id] - 1) }))} aria-label={`One fewer ${item.name}`}>−</button>
+                      <b>{item.quantity}×</b><span>{item.name}</span><strong>{money(item.price * item.quantity)}</strong>
+                    </div>
+                  ))}
+                </div>
+                <div className="cart-total"><span>Total</span><b>{money(cartTotal)}</b></div>
+                <label className="phone-field"><span>Name for pickup (optional)</span><input value={pickup} onChange={(event) => setPickup(event.target.value)} maxLength={30} placeholder="Leave blank to hand over now" /></label>
+                <div className="pay-toggle" role="group" aria-label="Payment">
+                  {(["card", "cash"] as const).map((p) => <button key={p} className={payKind === p ? "is-on" : ""} aria-pressed={payKind === p} onClick={() => setPayKind(p)}>{p === "card" ? "Card" : "Cash"}</button>)}
+                </div>
+                <div className="cart-actions">
+                  <Button variant="secondary" onClick={() => setCart({})} disabled={!cartRows.length}>Clear</Button>
+                  <Button disabled={!cartRows.length || charging} onClick={chargeOrder}>{pickup.trim() ? "Charge & queue" : "Charge"} {money(cartTotal)}</Button>
+                </div>
+              </article>
+            </div>
+          )}
         </>
       );
     }
@@ -544,6 +658,13 @@ export default function App() {
               <div className="progress"><i style={{ width: `${Math.min(100, bakeTotal ? (soldToday / bakeTotal) * 100 : 0)}%` }} /></div>
               <p>of {bakeTotal} to bake · {todaySales.length} orders today</p>
             </article>
+            <article className="sold-card takings-card">
+              <div><span className="eyebrow">Takings today</span><b>{money0(takings)}</b></div>
+              <p>{payCount("card")} card · {payCount("cash")} cash{unpaid ? ` · ${money(unpaid)} still to pay` : ""}{discounts ? ` · ${money(discounts)} in discounts` : ""}</p>
+              {waiting.length > 0 && <p className="queue-note"><b>{waiting.length}</b> {waiting.length === 1 ? "order is" : "orders are"} waiting at the counter</p>}
+            </article>
+            <button className="quick-link quick-flavor" onClick={() => navigate("plan")}><div><span>Week plan</span><b>{weekly ? `${fmtDay(weekly.run.weekStart)} to ${fmtDay(weekly.run.weekEnd)}` : "Not made yet"}</b></div><Icon name="arrow" /></button>
+            <button className="quick-link quick-partner" onClick={() => navigate("flavors")}><div><span>Picking up</span><b>{trends.filter((t) => t.status === "Rising").slice(0, 2).map((t) => nameOf(t.id)).join(", ") || "Nothing rising this fortnight"}</b></div><Icon name="arrow" /></button>
           </div>
         </div>
       </>
@@ -554,7 +675,7 @@ export default function App() {
     <main className="app-shell">
       <div className="parfait-stripe"><i /><i /><i /><i /></div>
       <aside className="sidebar">
-        <button className="brand" onClick={() => navigate("today")}><span className="brand-mark">G</span><span>Grandma's<br /><i>Bakeria</i></span></button>
+        <button className="brand" onClick={() => navigate("today")}><span className="brand-mark" aria-hidden="true"><img src="/cupcake.svg" alt="" /></span><span>Grandma's<br /><i>Bakeria</i></span></button>
         <div className="today-date"><span>Today is</span><b>{fmtDay(todayKey, { weekday: "long" })}</b><b>{fmtDay(todayKey, { month: "long", day: "numeric" })}</b></div>
         <nav className="nav-list" aria-label="Main navigation">
           {pages.map((item) => (
@@ -566,7 +687,7 @@ export default function App() {
         </nav>
       </aside>
       <section className="main-panel">
-        <div className="mobile-top"><button className="brand" onClick={() => navigate("today")}><span className="brand-mark">G</span><span>Grandma's Bakeria</span></button><div className="today-date"><b>{fmtDay(todayKey, { weekday: "short", month: "short", day: "numeric" })}</b></div></div>
+        <div className="mobile-top"><button className="brand" onClick={() => navigate("today")}><span className="brand-mark" aria-hidden="true"><img src="/cupcake.svg" alt="" /></span><span>Grandma's Bakeria</span></button><div className="today-date"><b>{fmtDay(todayKey, { weekday: "short", month: "short", day: "numeric" })}</b></div></div>
         <div className="screen">{renderScreen()}</div>
       </section>
       {toast && <div className="toast"><span><Icon name="check" /></span>{toast}</div>}
