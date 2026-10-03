@@ -224,7 +224,7 @@ export default function App() {
   const discounts = todaySales.reduce((t, s) => t + (s.discount || 0), 0);
   const payCount = (p: Sale["pay"]) => todaySales.filter((s) => s.pay === p).length;
   const waiting = todaySales.filter((s) => s.status !== "done");
-  const latest = [...todaySales].sort((a, b) => b.ts - a.ts).slice(0, 5);
+  const latest = [...todaySales].sort((a, b) => b.ts - a.ts).slice(0, 50); /* newest first; the box scrolls */
 
   /* units sold on each of the last four same weekdays, newest first */
   const lastFour = useMemo(() => {
@@ -610,7 +610,7 @@ export default function App() {
             <article className="sold-card latest-card">
               <div><span className="eyebrow">Latest orders</span><b>{todaySales.length}</b></div>
               {latest.length === 0 ? <p>No orders yet today. They appear here the moment they're rung up.</p> : (
-                <ul className="latest-list">
+                <div className="latest-scroll"><ul className="latest-list">
                   {latest.map((o) => (
                     <li key={o.id}>
                       <span className="latest-no">#{o.no ?? "–"}</span>
@@ -618,7 +618,7 @@ export default function App() {
                       <span className="latest-total">{money(o.total)}<small>{o.pay === "pending" ? "unpaid" : o.pay}</small></span>
                     </li>
                   ))}
-                </ul>
+                </ul></div>
               )}
             </article>
           </div>

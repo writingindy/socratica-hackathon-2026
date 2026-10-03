@@ -281,3 +281,8 @@ button { border: 0; cursor: pointer; }
 .latest-no { font-weight: 700; }
 .latest-total { text-align: right; font-weight: 700; }
 .sold-card .latest-list b, .latest-card .latest-no { font-size: 16px; letter-spacing: 0; }
+/* Latest orders fills what's left of the side column, ending level with the takings row, and scrolls inside */
+.today-grid { align-items: stretch; }
+.latest-card { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 260px; }
+.latest-scroll { position: relative; flex: 1 1 auto; margin-top: 12px; }
+.latest-scroll .latest-list { position: absolute; inset: 0; margin: 0; overflow-y: auto; overscroll-behavior: contain; align-content: start; padding-right: 6px; }
