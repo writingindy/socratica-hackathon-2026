@@ -28,7 +28,7 @@ Then open <http://localhost:3001>.
 | Request | Answered by |
 |---|---|
 | `GET /api/sales`, `/api/members`, `/api/health` | This project's dev server, straight from `../data` |
-| `GET /api/forecast/rolling`, `/api/forecast/weekly` | This project's dev server, from `../data/forecast.db`, which [demand-pred](../demand-pred/) writes |
+| `GET /api/forecast/rolling`, `/api/forecast/weekly`, `/api/forecast/day?day=YYYY-MM-DD` | This project's dev server, from `../data/forecast.db`, which [demand-pred](../demand-pred/) writes |
 | Everything else under `/api` (new orders, status changes, menu, live events) | The till server on port 3000 (change with `TILL_URL=...`) |
 
 Call these through [`src/api.ts`](src/api.ts), which has the types and a `subscribe()` helper for live updates:
@@ -42,7 +42,7 @@ const stop = subscribe({ sale: (s) => console.log("new sale", s.total) });
 
 ## What still needs wiring
 
-Today, Bake, Week plan and Order read real forecasts. Without demand-pred running, they show how to start it.
+Today, Bake, Week plan, Past days and Order read real forecasts. Without demand-pred running, they show how to start it. Past days shows what was forecast for any earlier day next to what really sold.
 
 These come straight from the till's sales:
 
@@ -50,7 +50,7 @@ These come straight from the till's sales:
 - **Trends:** each item's last two weeks against the two before (rising, steady or fading), with the notes customers left on their orders.
 - **New order:** the till's own menu and prices. Charging sends the order to the till, which numbers it; with a name for pickup, it joins the till's make queue. This page needs the till running.
 
-Marketing (`partners` at the top of `src/App.tsx`) and the weather on Today are still placeholders. Replace them with calls to `src/api.ts`. If you need data the API doesn't have yet, add the endpoint to `grandmas-till/server.js`.
+Marketing (`partners` at the top of `src/App.tsx`) is still a placeholder. Replace it with calls to `src/api.ts`. If you need data the API doesn't have yet, add the endpoint to `grandmas-till/server.js`.
 
 ## Scripts
 

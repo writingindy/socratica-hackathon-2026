@@ -6,7 +6,7 @@ import { createRequire } from 'node:module'
 
 /* The dashboard shares the database in ../data with Grandma's Till.
    - Reads (GET /api/health, /api/sales, /api/members) come straight from ../data, so they work even when the till is off.
-   - Forecasts (GET /api/forecast/rolling, /api/forecast/weekly) come from ../data/forecast.db, which demand-pred writes.
+   - Forecasts (GET /api/forecast/rolling, /api/forecast/weekly, /api/forecast/day?day=YYYY-MM-DD) come from ../data/forecast.db, which demand-pred writes.
    - Everything else under /api (new orders, status changes, the menu, live events) goes to the till server,
      which checks prices, numbers orders and tells every open screen. Start it with `cd ../grandmas-till && node server.js`. */
 const TILL_URL = process.env.TILL_URL || 'http://localhost:3000'
@@ -34,6 +34,12 @@ function sharedData(): Plugin {
           if (!body) res.statusCode = 404
           return send(res, body ?? { error: 'No forecast yet. Start it with: cd demand-pred && node forecast.js --watch' })
         }
+        if (url.pathname === '/api/forecast/day') {
+          const day = url.searchParams.get('day') || ''
+          const body = /^\d{4}-\d{2}-\d{2}$/.test(day) ? forecasts.forDay(day) : null
+          if (!body) res.statusCode = 404
+          return send(res, body ?? { error: 'No forecast was made for that day.' })
+        }
         if (url.pathname === '/api/sales') {
           const src = url.searchParams.get('src')
           return send(res, store.listSales(Number(url.searchParams.get('since')) || 0, src === 'live' || src === 'till'))
@@ -49,7 +55,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), sharedData()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
   server: {

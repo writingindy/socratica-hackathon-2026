@@ -124,6 +124,8 @@ export const api = {
   rollingForecast: () => request<RollingForecast>("/api/forecast/rolling"),
   /** The weekly plan and shopping list, made every Sunday evening by demand-pred. Fails with 404 until it has run. */
   weeklyPlan: () => request<WeeklyPlan>("/api/forecast/weekly"),
+  /** What was forecast for one day ("YYYY-MM-DD"), from the newest run that covered it. Fails with 404 if none did. */
+  dayForecast: (day: string) => request<RollingForecast>(`/api/forecast/day?day=${encodeURIComponent(day)}`),
   addMember: (name: string) => request<Member>("/api/members", json("POST", { name })),
 };
 
