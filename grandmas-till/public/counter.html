@@ -43,6 +43,11 @@
       </section>
       <div class="receipt" id="receipt"></div>
       <section class="panel memberbox">
+        <h2>Discount</h2>
+        <div id="discounts"></div>
+        <p class="hint" id="discHint"></p>
+      </section>
+      <section class="panel memberbox">
         <h2><label for="pickupName">Name for pickup</label></h2>
         <input id="pickupName" type="text" maxlength="30" placeholder="Leave blank to hand over now" autocomplete="off">
         <p class="hint" id="pickupHint">Add a name to send this order to the make queue.</p>
@@ -85,6 +90,7 @@
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="core.js"></script>
+<script src="art.js"></script>
 <script src="shared.js"></script>
 <script src="counter.js"></script>
 </body>
