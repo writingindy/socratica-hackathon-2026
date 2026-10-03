@@ -628,7 +628,7 @@ export default function App() {
     <main className="app-shell">
       <div className="parfait-stripe"><i /><i /><i /><i /></div>
       <aside className="sidebar">
-        <button className="brand" onClick={() => navigate("today")}><span className="brand-mark">G</span><span>Grandma's<br /><i>Bakeria</i></span></button>
+        <button className="brand" onClick={() => navigate("today")}><span className="brand-mark" aria-hidden="true"><img src="/cupcake.svg" alt="" /></span><span>Grandma's<br /><i>Bakeria</i></span></button>
         <nav className="nav-list" aria-label="Main navigation">
           {pages.map((item) => (
             <button className={page === item.id ? "is-active" : ""} onClick={() => navigate(item.id)} key={item.id}>
@@ -643,7 +643,7 @@ export default function App() {
         <div className="grandma-profile"><span>GM</span><div><b>Grandma Mae</b><i>Shop owner</i></div><button aria-label="Open settings">•••</button></div>
       </aside>
       <section className="main-panel">
-        <div className="mobile-top"><button className="brand" onClick={() => navigate("today")}><span className="brand-mark">G</span><span>Grandma's Bakeria</span></button></div>
+        <div className="mobile-top"><button className="brand" onClick={() => navigate("today")}><span className="brand-mark" aria-hidden="true"><img src="/cupcake.svg" alt="" /></span><span>Grandma's Bakeria</span></button></div>
         <div className="screen">{renderScreen()}</div>
       </section>
       {toast && <div className="toast"><span><Icon name="check" /></span>{toast}</div>}

@@ -33,6 +33,7 @@ h1,h2,h3{text-wrap:balance}
 .brand{display:flex;align-items:center;gap:11px;padding:0;background:transparent;text-align:left;font-size:18px;font-weight:700;line-height:.9;letter-spacing:-.04em;text-decoration:none}
 .brand i{color:var(--tomato);font:22px/1 var(--hand);font-style:normal;letter-spacing:0}
 .brand-mark{width:43px;height:43px;display:grid;place-items:center;flex:0 0 43px;border:1.5px solid var(--ink);border-radius:50% 44% 49% 46%;background:var(--petal);font:26px var(--hand);transform:rotate(-5deg)}
+.brand-mark img{width:76%;height:76%;display:block}
 
 /* counter shell: sidebar + main panel */
 .app-shell{min-height:calc(100vh - 7px);display:grid;grid-template-columns:242px minmax(0,1fr)}

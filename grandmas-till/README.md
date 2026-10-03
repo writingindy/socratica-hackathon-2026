@@ -163,3 +163,5 @@ Any host that runs Node works. Point it at this repository, set its **Root Direc
 ## What is simulated
 
 The menu, prices, six weeks of sales history and the 40 sample members are sample data. Card payments on the customer screen are a short animation; no card is charged.
+
+Cupcake icon (`public/cupcake.svg`) by Verra Prania from [Noun Project](https://thenounproject.com/) (CC BY 3.0).

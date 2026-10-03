@@ -60,3 +60,4 @@ Marketing (`partners` at the top of `src/App.tsx`) and the weather on Today are 
 | `npm run build` | Production build into `dist/` |
 | `npm run typecheck` | TypeScript check |
 
+Cupcake icon (`public/cupcake.svg`) by Verra Prania from [Noun Project](https://thenounproject.com/) (CC BY 3.0).
