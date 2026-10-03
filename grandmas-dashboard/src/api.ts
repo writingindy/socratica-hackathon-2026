@@ -4,10 +4,14 @@
 
 const BASE = (import.meta.env.VITE_TILL_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
-export type MenuItem = { id: string; name: string; cat: "Parfaits" | "Bakes" | "Drinks"; price: number; fresh: boolean };
+/** A group of options an item offers, e.g. Milk. `one` means at most one choice. Prices are added to the item's. */
+export type OptionGroup = { group: string; label: string; one: boolean; choices: { id: string; name: string; price: number }[] };
+export type MenuItem = { id: string; name: string; cat: "Parfaits" | "Bakes" | "Drinks"; price: number; fresh: boolean; options: OptionGroup[] };
 
-/** One item on a sale: menu item id, quantity, unit price at the time of sale. */
-export type SaleLine = { id: string; q: number; p: number };
+/** One item on a sale: menu item id, quantity, unit price (including paid options), chosen option ids and a note. */
+export type SaleLine = { id: string; q: number; p: number; opts?: string[]; note?: string };
+
+export type DiscountKind = "member" | "pct20" | "comp" | "amount";
 
 export type Sale = {
   id: string;
@@ -16,10 +20,12 @@ export type Sale = {
   total: number;
   pay: "card" | "cash" | "pending";
   m: string | null; // member id
-  src: "sim" | "till" | "kiosk" | "rush"; // sim = simulated history, the rest are real orders
+  src: "sim" | "till" | "kiosk"; // sim = simulated history, till = rung up at the counter, kiosk = the customer screen
   no: number | null; // order number, restarts each day
   name: string | null; // name to call out
   status: "new" | "ready" | "done";
+  discount: number; // dollars taken off; total is after it
+  discountKind: DiscountKind | null;
 };
 
 export type Member = { id: string; num: number; name: string; joined: number; sample: 0 | 1 };
@@ -99,7 +105,14 @@ export const api = {
     request<Sale[]>(`/api/sales?since=${since}${liveOnly ? "&src=live" : ""}`),
 
   /** The server looks up prices, stamps the time and numbers the order. */
-  addSale: (sale: { lines: { id: string; q: number }[]; pay?: "card" | "cash" | "pending"; m?: string; name?: string }) =>
+  addSale: (sale: {
+    id?: string;
+    lines: { id: string; q: number; opts?: string[]; note?: string }[];
+    pay?: "card" | "cash" | "pending";
+    m?: string;
+    name?: string;
+    discount?: { kind: DiscountKind; value?: number };
+  }) =>
     request<Sale>("/api/sales", json("POST", sale)),
 
   updateSale: (id: string, change: { status?: Sale["status"]; pay?: "card" | "cash" }) =>

@@ -307,3 +307,11 @@ button { border: 0; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
+
+/* live data from the till */
+.takings-card .queue-note { margin-top: 10px; padding: 8px 10px; border: 1.5px solid var(--ink); background: var(--butter); color: var(--ink); font-size: 12px; }
+.takings-card .queue-note b { font-size: 16px; letter-spacing: 0; }
+.note-list { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; font: 18px/1.2 var(--hand); color: var(--petal); }
+.pay-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.pay-toggle button { min-height: 44px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--paper-soft); font-size: 13px; font-weight: 700; }
+.pay-toggle button.is-on { background: var(--butter); box-shadow: 3px 3px 0 var(--ink); }
