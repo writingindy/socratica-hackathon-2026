@@ -12,6 +12,27 @@ Project demos for the Socratica Hackathon. Each folder is one project and runs o
 
 **Shared database:** [`data/`](data/) holds the one database both projects use. The till writes to it; the dashboard reads it. See [data/README.md](data/README.md).
 
+## Run everything
+
+```bash
+npm run dev
+```
+
+From the repository root, this starts all three, labelled in one terminal:
+
+| App | What it does | Open |
+|---|---|---|
+| grandmas-till | The till server. Creates and fills the shared database in `data/`, and restarts itself when its code changes | <http://localhost:3000/counter> (Grandma) · <http://localhost:3000/order> (customers) |
+| demand-pred | Keeps the forecasts in `data/forecast.db` fresh | |
+| grandmas-dashboard | Grandma's dashboard | <http://localhost:3001> |
+
+- The first run installs the dashboard's packages by itself. Needs Node 22.13 or newer.
+- Ctrl+C stops all three. If one of them crashes, the others stop too, so nothing is left running out of date.
+- `TILL_PORT=4000 DASH_PORT=4001 npm run dev` uses other ports.
+- `npm run reset` wipes the database and starts the till fresh.
+
+Each app still runs on its own from its folder, as its README describes.
+
 ## Get started
 
 ```bash
