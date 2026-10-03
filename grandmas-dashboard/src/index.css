@@ -273,3 +273,9 @@ button { border: 0; cursor: pointer; }
 .pay-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
 .pay-toggle button { min-height: 44px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--paper-soft); font-size: 16px; font-weight: 700; }
 .pay-toggle button.is-on { background: var(--butter); box-shadow: 3px 3px 0 var(--ink); }
+.latest-list { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.latest-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding-top: 8px; border-top: 1px solid var(--line); font-size: 16px; }
+.latest-list small { display: block; color: var(--muted); font-size: 16px; }
+.latest-no { font-weight: 700; }
+.latest-total { text-align: right; font-weight: 700; }
+.sold-card .latest-list b, .latest-card .latest-no { font-size: 16px; letter-spacing: 0; }

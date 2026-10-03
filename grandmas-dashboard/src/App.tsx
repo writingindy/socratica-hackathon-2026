@@ -207,7 +207,8 @@ export default function App() {
 
   const madeAhead = useMemo(() => new Set((rolling?.forecasts ?? []).filter((r) => r.madeAhead).map((r) => r.itemId)), [rolling]);
   const todayStart = parseDay(todayKey).getTime();
-  const todaySales = sales.filter((s) => s.ts >= todayStart);
+  /* today counts real orders only (till and kiosk). The simulated history is there for the forecasts, not for today's numbers. */
+  const todaySales = sales.filter((s) => s.ts >= todayStart && s.src !== "sim");
   const soldToday = todaySales.reduce((t, s) => t + s.lines.reduce((n, l) => n + (madeAhead.has(l.id) ? l.q : 0), 0), 0);
 
   const names = useMemo(() => {
@@ -217,12 +218,13 @@ export default function App() {
   }, [menu, rolling]);
   const nameOf = (id: string) => names.get(id) ?? id;
 
-  /* today's takings, live: simulated sales stand in for the rest of the day's customers */
+  /* today's takings, live */
   const takings = todaySales.filter((s) => s.pay !== "pending").reduce((t, s) => t + s.total, 0);
   const unpaid = todaySales.filter((s) => s.pay === "pending").reduce((t, s) => t + s.total, 0);
   const discounts = todaySales.reduce((t, s) => t + (s.discount || 0), 0);
   const payCount = (p: Sale["pay"]) => todaySales.filter((s) => s.pay === p).length;
-  const waiting = todaySales.filter((s) => s.src !== "sim" && s.status !== "done");
+  const waiting = todaySales.filter((s) => s.status !== "done");
+  const latest = [...todaySales].sort((a, b) => b.ts - a.ts).slice(0, 5);
 
   /* units sold on each of the last four same weekdays, newest first */
   const lastFour = useMemo(() => {
@@ -602,6 +604,20 @@ export default function App() {
               <div><span className="eyebrow">Takings today</span><b>{money0(takings)}</b></div>
               <p>{payCount("card")} card · {payCount("cash")} cash{unpaid ? ` · ${money(unpaid)} still to pay` : ""}{discounts ? ` · ${money(discounts)} in discounts` : ""}</p>
               {waiting.length > 0 && <p className="queue-note"><b>{waiting.length}</b> {waiting.length === 1 ? "order is" : "orders are"} waiting at the counter</p>}
+            </article>
+            <article className="sold-card latest-card">
+              <div><span className="eyebrow">Latest orders</span><b>{todaySales.length}</b></div>
+              {latest.length === 0 ? <p>No orders yet today. They appear here the moment they're rung up.</p> : (
+                <ul className="latest-list">
+                  {latest.map((o) => (
+                    <li key={o.id}>
+                      <span className="latest-no">#{o.no ?? "–"}</span>
+                      <span className="latest-what">{o.name ? `${o.name} · ` : ""}{o.lines.map((l) => `${l.q > 1 ? `${l.q}× ` : ""}${nameOf(l.id)}`).join(", ")}<small>{new Date(o.ts).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })} · {o.src === "kiosk" ? "kiosk" : "counter"} · {o.status === "done" ? "handed over" : o.status === "ready" ? "ready" : "being made"}</small></span>
+                      <span className="latest-total">{money(o.total)}<small>{o.pay === "pending" ? "unpaid" : o.pay}</small></span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </article>
           </div>
         </div>
