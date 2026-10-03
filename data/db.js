@@ -22,35 +22,40 @@ function sqliteStore() {
     CREATE TABLE IF NOT EXISTS sales (
       id TEXT PRIMARY KEY, ts INTEGER NOT NULL, total REAL NOT NULL,
       pay TEXT NOT NULL, member_id TEXT, src TEXT NOT NULL,
-      order_no INTEGER, name TEXT, status TEXT NOT NULL DEFAULT 'done');
+      order_no INTEGER, name TEXT, status TEXT NOT NULL DEFAULT 'done',
+      discount REAL NOT NULL DEFAULT 0, discount_kind TEXT);
     CREATE TABLE IF NOT EXISTS sale_lines (
-      sale_id TEXT NOT NULL, item_id TEXT NOT NULL, qty INTEGER NOT NULL, price REAL NOT NULL);
+      sale_id TEXT NOT NULL, item_id TEXT NOT NULL, qty INTEGER NOT NULL, price REAL NOT NULL,
+      opts TEXT, note TEXT);
     CREATE TABLE IF NOT EXISTS members (
       id TEXT PRIMARY KEY, num INTEGER NOT NULL, name TEXT NOT NULL,
       joined INTEGER NOT NULL, sample INTEGER NOT NULL DEFAULT 0);
     CREATE INDEX IF NOT EXISTS sales_ts ON sales(ts);
     CREATE INDEX IF NOT EXISTS sale_lines_sale ON sale_lines(sale_id);`);
-  /* databases made before orders had numbers and a status get the new columns added in place */
-  const cols = db.prepare('PRAGMA table_info(sales)').all().map(c => c.name);
-  for (const [c, type] of [['order_no', 'INTEGER'], ['name', 'TEXT'], ['status', "TEXT NOT NULL DEFAULT 'done'"]]) if (!cols.includes(c)) db.exec(`ALTER TABLE sales ADD COLUMN ${c} ${type}`);
-  const insSale = db.prepare('INSERT OR IGNORE INTO sales (id, ts, total, pay, member_id, src, order_no, name, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  const insLine = db.prepare('INSERT INTO sale_lines (sale_id, item_id, qty, price) VALUES (?, ?, ?, ?)');
+  /* databases made by earlier versions get the newer columns added in place */
+  const addCols = (table, list) => { const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name); for (const [c, type] of list) if (!cols.includes(c)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${c} ${type}`); };
+  addCols('sales', [['order_no', 'INTEGER'], ['name', 'TEXT'], ['status', "TEXT NOT NULL DEFAULT 'done'"], ['discount', 'REAL NOT NULL DEFAULT 0'], ['discount_kind', 'TEXT']]);
+  addCols('sale_lines', [['opts', 'TEXT'], ['note', 'TEXT']]);
+  const insSale = db.prepare('INSERT OR IGNORE INTO sales (id, ts, total, pay, member_id, src, order_no, name, status, discount, discount_kind) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const insLine = db.prepare('INSERT INTO sale_lines (sale_id, item_id, qty, price, opts, note) VALUES (?, ?, ?, ?, ?, ?)');
   const insMember = db.prepare('INSERT OR REPLACE INTO members (id, num, name, joined, sample) VALUES (?, ?, ?, ?, ?)');
-  const put = s => { if (!insSale.run(s.id, s.ts, s.total, s.pay, s.m, s.src, s.no ?? null, s.name ?? null, s.status || 'done').changes) return false; for (const l of s.lines) insLine.run(s.id, l.id, l.q, l.p); return true; };
+  const put = s => { if (!insSale.run(s.id, s.ts, s.total, s.pay, s.m, s.src, s.no ?? null, s.name ?? null, s.status || 'done', s.discount || 0, s.discountKind ?? null).changes) return false; for (const l of s.lines) insLine.run(s.id, l.id, l.q, l.p, l.opts && l.opts.length ? l.opts.join(',') : null, l.note || null); return true; };
+  /* a line only carries opts and note when it has them, so plain lines stay small */
+  const line = l => { const o = { id: l.item_id, q: l.qty, p: l.price }; if (l.opts) o.opts = l.opts.split(','); if (l.note) o.note = l.note; return o; };
   const tx = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
-  const row = r => ({ id: r.id, ts: r.ts, lines: [], total: r.total, pay: r.pay, m: r.member_id, src: r.src, no: r.order_no, name: r.name, status: r.status });
+  const row = r => ({ id: r.id, ts: r.ts, lines: [], total: r.total, pay: r.pay, m: r.member_id, src: r.src, no: r.order_no, name: r.name, status: r.status, discount: r.discount || 0, discountKind: r.discount_kind });
   const drop = where => { db.exec(`DELETE FROM sale_lines WHERE sale_id IN (SELECT id FROM sales WHERE ${where})`); return db.prepare(`DELETE FROM sales WHERE ${where}`).run().changes; };
   return {
     kind: 'sqlite', file: 'data/till.db',
     listSales(since = 0, live = false) {
       const where = 's.ts >= ?' + (live ? " AND s.src <> 'sim'" : ''), out = [], by = new Map();
       for (const r of db.prepare(`SELECT s.* FROM sales s WHERE ${where} ORDER BY s.ts, s.id`).all(since)) { const s = row(r); by.set(r.id, s); out.push(s); }
-      for (const l of db.prepare(`SELECT l.sale_id, l.item_id, l.qty, l.price FROM sale_lines l JOIN sales s ON s.id = l.sale_id WHERE ${where} ORDER BY l.rowid`).all(since)) { const s = by.get(l.sale_id); if (s) s.lines.push({ id: l.item_id, q: l.qty, p: l.price }); }
+      for (const l of db.prepare(`SELECT l.sale_id, l.item_id, l.qty, l.price, l.opts, l.note FROM sale_lines l JOIN sales s ON s.id = l.sale_id WHERE ${where} ORDER BY l.rowid`).all(since)) { const s = by.get(l.sale_id); if (s) s.lines.push(line(l)); }
       return out;
     },
     getSale(id) {
       const r = db.prepare('SELECT * FROM sales WHERE id = ?').get(id); if (!r) return null;
-      const s = row(r); s.lines = db.prepare('SELECT item_id, qty, price FROM sale_lines WHERE sale_id = ? ORDER BY rowid').all(id).map(l => ({ id: l.item_id, q: l.qty, p: l.price }));
+      const s = row(r); s.lines = db.prepare('SELECT item_id, qty, price, opts, note FROM sale_lines WHERE sale_id = ? ORDER BY rowid').all(id).map(line);
       return s;
     },
     setState: (id, status, pay) => db.prepare('UPDATE sales SET status = ?, pay = ? WHERE id = ?').run(status, pay, id),
@@ -73,7 +78,7 @@ function jsonStore() {
   load();
   let timer = null;
   const save = () => { clearTimeout(timer); timer = setTimeout(() => { fs.writeFileSync(file + '.tmp', JSON.stringify(d)); fs.renameSync(file + '.tmp', file); seen = fs.statSync(file).mtimeMs; timer = null; }, 200); };
-  const put = s => { if (d.sales.some(x => x.id === s.id)) return false; d.sales.push({ no: null, name: null, status: 'done', ...s }); return true; };
+  const put = s => { if (d.sales.some(x => x.id === s.id)) return false; d.sales.push({ no: null, name: null, status: 'done', discount: 0, discountKind: null, ...s }); return true; };
   return {
     kind: 'json', file: 'data/till.json',
     listSales: (since = 0, live = false) => { if (!timer) load(); return d.sales.filter(s => s.ts >= since && !(live && s.src === 'sim')).sort((a, b) => a.ts - b.ts); },

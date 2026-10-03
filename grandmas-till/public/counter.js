@@ -2,7 +2,7 @@
 'use strict';
 /* ---------- counter: Grandma rings up sales, works through the order queue, and checks today's takings ---------- */
 const TABS = ['ring', 'orders', 'today'];
-const S = { tab: 'ring', cart: new Map(), pay: 'card', member: null, busy: false, simulating: false, confirmClear: false };
+const S = { tab: 'ring', cart: [], ui: { open: null }, disc: { kind: null, value: 0 }, pay: 'card', member: null, busy: false, simulating: false, confirmClear: false };
 const SAMPLE = sampleMembers();
 const WALK_INS = ['Rosa', 'Ben', 'Ada', 'Sam', 'Jun', 'Lea', 'Tom', 'Ines', 'Raj', 'Marta'];
 const seen = new Set(); let primed = false;
@@ -33,26 +33,36 @@ function renderMenu() {
   const root = $('menu');
   for (const cat of ['Parfaits', 'Bakes', 'Drinks']) {
     root.append(h('h2', { class: 'cat' }, cat));
-    root.append(h('div', { class: 'menu-grid' }, MENU.filter(m => m.cat === cat).map(it => menuTile(it, () => addToCart(it.id, 1)))));
+    root.append(h('div', { class: 'menu-grid' }, MENU.filter(m => m.cat === cat).map(it => menuTile(it, () => { Cart.add(S.cart, it.id); cartChanged(); }, () => { Cart.minus(S.cart, it.id); cartChanged(); }))));
   }
 }
-function addToCart(id, n) { const q = (S.cart.get(id) || 0) + n; if (q <= 0) S.cart.delete(id); else S.cart.set(id, Math.min(q, 50)); renderReceipt(); renderCartBar(); }
-function chargeLabel(total) { const queued = !!$('pickupName').value.trim(); return total ? (queued ? 'Charge & queue ' : 'Charge ') + money.format(total) : 'Charge'; }
+function cartChanged() { renderReceipt(); renderCartBar(); }
+function chargeLabel(total) { const queued = !!$('pickupName').value.trim(); return S.cart.length ? (queued ? 'Charge & queue ' : 'Charge ') + money.format(total) : 'Charge'; }
 function renderReceipt() {
-  const r = $('receipt'), lines = [...S.cart], { total } = cartTotal(S.cart);
-  r.replaceChildren(h('div', { class: 'rc-head' }, h('b', null, "Grandma's"), h('span', null, fmtShort(Date.now()) + ' · ' + fmtTime(Date.now()))));
-  if (!lines.length) r.append(h('p', { class: 'rc-empty' }, 'Tap an item to start a sale.'));
-  else r.append(h('ul', { class: 'rc-lines' }, lines.map(([id, q]) => h('li', null,
-    h('span', { class: 'nm' }, itemName(id)),
-    h('span', { class: 'step' }, h('button', { type: 'button', 'aria-label': 'One fewer ' + itemName(id), onclick: () => addToCart(id, -1) }, '−'), h('span', null, q), h('button', { type: 'button', 'aria-label': 'One more ' + itemName(id), onclick: () => addToCart(id, 1) }, '+')),
-    h('span', { class: 'lt' }, money.format(MENU[IDX[id]].price * q))))));
-  r.append(h('div', { class: 'rc-total' }, h('span', null, 'Total'), h('b', null, money.format(total))));
-  const btn = $('charge'); btn.textContent = Live.up ? chargeLabel(total) : 'Reconnecting…'; btn.disabled = !total || S.busy || !Live.up;
+  const r = $('receipt'), sub = Cart.subtotal(S.cart), total = cartTotal(S.cart, S.disc);
+  keepFocus(() => {
+    r.replaceChildren(h('div', { class: 'rc-head' }, h('b', null, "Grandma's"), h('span', null, fmtShort(Date.now()) + ' · ' + fmtTime(Date.now()))));
+    if (!S.cart.length) r.append(h('p', { class: 'rc-empty' }, 'Tap an item to start a sale.'));
+    else r.append(cartLines(S.cart, S.ui, cartChanged));
+    r.append(...totalRows(sub, S.disc).filter(Boolean));
+  });
+  const btn = $('charge'); btn.textContent = Live.up ? chargeLabel(total) : 'Reconnecting…'; btn.disabled = !S.cart.length || S.busy || !Live.up;
   $('pickupHint').textContent = $('pickupName').value.trim() ? 'Goes to the Orders queue. Call this name when it is ready.' : 'Add a name to send this order to the make queue.';
-  for (const t of document.querySelectorAll('.tile')) { const q = S.cart.get(t.getAttribute('data-id')) || 0, b = t.querySelector('.tile-qty'); b.hidden = !q; b.textContent = q; }
+  keepFocus(renderDiscount); syncTiles(S.cart);
+}
+/* discounts: Grandma picks one per sale. Member 10% switches on by itself when a member is attached. */
+function setDisc(kind, value) { S.disc = { kind, value: value || 0 }; cartChanged(); }
+function renderDiscount() {
+  const box = $('discounts'), m = S.member && Live.member(S.member), isAmt = S.disc.kind === 'amount';
+  const chip = (kind, label, disabled) => h('button', { type: 'button', class: 'opt', 'aria-pressed': String(S.disc.kind === kind), disabled: disabled || null, onclick: () => setDisc(kind, kind === 'amount' ? S.disc.value : 0) }, label);
+  const amt = h('input', { type: 'text', inputmode: 'decimal', class: 'opt-note', id: 'discAmt', placeholder: '$ off, e.g. 2.50', value: isAmt ? (S.disc.draft ?? (S.disc.value ? String(S.disc.value) : '')) : '', 'aria-label': 'Dollar amount off', hidden: !isAmt });
+  amt.addEventListener('input', () => { S.disc.draft = amt.value; }); /* survives a re-render while typing */
+  amt.addEventListener('change', () => setDisc('amount', Math.max(0, Number(amt.value.replace(/[^0-9.]/g, '')) || 0)));
+  box.replaceChildren(h('div', { class: 'opt-group' }, chip(null, 'None'), chip('member', DISCOUNTS.member.label, !m), chip('pct20', DISCOUNTS.pct20.label), chip('comp', DISCOUNTS.comp.label), chip('amount', DISCOUNTS.amount.label)), amt);
+  $('discHint').textContent = !m && S.disc.kind !== 'member' ? 'Attach a member to use the member discount.' : S.disc.kind === 'comp' ? 'The whole sale is free. It is still recorded.' : '';
 }
 function renderCartBar() {
-  const { total, n } = cartTotal(S.cart), show = S.tab === 'ring' && n > 0;
+  const n = Cart.count(S.cart), total = cartTotal(S.cart, S.disc), show = S.tab === 'ring' && n > 0;
   $('cartbar').hidden = !show; $('main').classList.toggle('has-bar', show);
   if (show) { $('cartbarText').textContent = n + (n === 1 ? ' item · ' : ' items · ') + money.format(total); $('cartbarCharge').disabled = S.busy || !Live.up; }
 }
@@ -64,7 +74,8 @@ function renderMemberResults() {
   for (const m of list) box.append(h('button', { type: 'button', class: 'mres', onclick: () => attachMember(m.id) }, h('span', null, m.name), h('span', { class: 'num' }, '#' + m.num)));
   if (raw.length >= 2 && /[a-z]/i.test(raw) && !list.some(m => m.name.toLowerCase() === q)) box.append(h('button', { type: 'button', class: 'mres add', onclick: () => signUp(raw) }, 'Sign up “' + raw.slice(0, 40) + '” as a new member'));
 }
-function attachMember(id) { S.member = id; $('memberSearch').value = ''; $('memberResults').replaceChildren(); renderMemberBox(); }
+function attachMember(id) { S.member = id; if (!S.disc.kind) S.disc = { kind: 'member', value: 0 }; $('memberSearch').value = ''; $('memberResults').replaceChildren(); renderMemberBox(); cartChanged(); }
+function detachMember() { S.member = null; if (S.disc.kind === 'member') S.disc = { kind: null, value: 0 }; renderMemberBox(); cartChanged(); }
 async function signUp(name) {
   try { const m = await Live.addMember(name.trim().slice(0, 40)); attachMember(m.id); toast(m.name + ' is member #' + m.num); }
   catch (e) { toast('Could not sign up: ' + e.message); }
@@ -74,16 +85,16 @@ function renderMemberBox() {
   $('memberFind').hidden = !!m; card.hidden = !m; card.replaceChildren();
   if (!m) return;
   const visits = Live.today().filter(o => o.m === m.id).length;
-  card.append(h('div', { class: 'mc-top' }, h('strong', null, m.name), h('span', { class: 'num' }, '#' + m.num), h('button', { type: 'button', class: 'x', onclick: () => { S.member = null; renderMemberBox(); } }, 'Remove')));
+  card.append(h('div', { class: 'mc-top' }, h('strong', null, m.name), h('span', { class: 'num' }, '#' + m.num), h('button', { type: 'button', class: 'x', onclick: detachMember }, 'Remove')));
   card.append(h('p', { class: 'mc-meta' }, visits ? 'Already in ' + visits + (visits === 1 ? ' time' : ' times') + ' today' : 'First visit today'));
 }
 async function charge() {
-  if (!S.cart.size || S.busy || !Live.up) return;
+  if (!S.cart.length || S.busy || !Live.up) return;
   const name = $('pickupName').value.trim();
   S.busy = true; render();
   try {
-    const o = await Live.place({ id: newId('s'), lines: [...S.cart].map(([id, q]) => ({ id, q })), pay: S.pay, m: S.member, src: 'till', name });
-    S.cart.clear(); S.member = null; $('pickupName').value = '';
+    const o = await Live.place({ id: newId('s'), lines: Cart.payload(S.cart), pay: S.pay, m: S.member, src: 'till', name, discount: S.disc.kind ? S.disc : null });
+    S.cart = []; S.ui.open = null; S.member = null; S.disc = { kind: null, value: 0 }; $('pickupName').value = '';
     toast(o.status === 'new' ? 'Order ' + orderNo(o) + ' for ' + o.name + ' sent to the queue' : 'Sale ' + orderNo(o) + ' saved · ' + money.format(o.total) + ' ' + o.pay);
   } catch (e) { toast('Not saved: ' + e.message); } /* the cart stays, so she can try again */
   S.busy = false; render();
@@ -103,8 +114,10 @@ function orderCard(o) {
   else if (ready) acts.push(b('Handed over', { status: 'done' }, true));
   return h('li', { class: 'ocard' + (primed && !seen.has(o.id) ? ' new' : '') + (owes ? ' owes' : '') },
     h('div', { class: 'oc-top' }, h('span', { class: 'oc-no num' }, orderNo(o)), h('span', { class: 'oc-name' }, o.name), h('span', { class: 'tag' + (o.src === 'kiosk' ? ' live' : '') }, o.src === 'kiosk' ? 'Kiosk' : 'Counter')),
-    h('ul', { class: 'oc-lines' }, o.lines.map(l => h('li', null, h('b', { class: 'num' }, l.q + '×'), ' ' + itemName(l.id)))),
-    h('div', { class: 'oc-meta' }, h('span', null, fmtTime(o.ts) + ' · ' + minsAgo(o.ts) + (m ? ' · member #' + m.num : '')), h('span', { class: owes ? 'owe' : null }, owes ? 'To pay ' + money.format(o.total) : 'Paid ' + o.pay + ' · ' + money.format(o.total))),
+    h('ul', { class: 'oc-lines' }, o.lines.map(l => h('li', null, h('b', { class: 'num' }, l.q + '×'), ' ' + itemName(l.id),
+      l.opts && l.opts.length ? h('small', { class: 'oc-opts' }, l.opts.map(id => (OPTION[id] || { name: id }).name).join(' · ')) : null,
+      l.note ? h('small', { class: 'oc-note' }, '“' + l.note + '”') : null))),
+    h('div', { class: 'oc-meta' }, h('span', null, fmtTime(o.ts) + ' · ' + minsAgo(o.ts) + (m ? ' · member #' + m.num : '')), h('span', { class: owes ? 'owe' : null }, (owes ? 'To pay ' : 'Paid ' + o.pay + ' · ') + money.format(o.total) + (o.discount ? ' · ' + discountText(o) : ''))),
     h('div', { class: 'oc-acts' }, acts));
 }
 function renderQueue() {
@@ -113,6 +126,12 @@ function renderQueue() {
   $('qReady').replaceChildren(...(cols.ready.length ? cols.ready.map(orderCard) : [h('li', { class: 'empty' }, 'Nothing waiting to be picked up.')]));
   $('nNew').textContent = cols.new.length || ''; $('nReady').textContent = cols.ready.length || '';
 }
+const SIM_NOTES = ['No nuts please, allergy', "It's a birthday!", 'Extra napkins', 'Cut in half'];
+const anyOf = list => list[Math.floor(Math.random() * list.length)];
+function simLine(l) {
+  const groups = optionGroups(l.id), opts = groups.length && Math.random() < .4 ? [anyOf(OPTION_GROUPS[anyOf(groups)].choices)[0]] : [];
+  return { id: l.id, q: l.q, opts, note: Math.random() < .12 ? anyOf(SIM_NOTES) : '' };
+}
 async function simulate() {
   if (S.simulating || !Live.up) return; S.simulating = true; const btn = $('simulate'); btn.disabled = true;
   try {
@@ -120,7 +139,7 @@ async function simulate() {
       btn.textContent = 'Customer ' + (k + 1) + ' of 3 ordering…';
       const mem = Math.random() < .4 ? SAMPLE[Math.floor(Math.random() * SAMPLE.length)] : null;
       const lines = makeBasket(Math.random, clamp(new Date().getHours(), OPEN, CLOSE - 1), 0, mem);
-      await Live.place({ id: newId('k'), lines: lines.map(l => ({ id: l.id, q: l.q })), pay: Math.random() < .5 ? 'card' : 'pending', m: mem ? mem.id : null, src: 'kiosk', name: mem ? mem.name.split(' ')[0] : WALK_INS[Math.floor(Math.random() * WALK_INS.length)] });
+      await Live.place({ id: newId('k'), lines: lines.map(simLine), pay: Math.random() < .5 ? 'card' : 'pending', m: mem ? mem.id : null, src: 'kiosk', name: mem ? mem.name.split(' ')[0] : WALK_INS[Math.floor(Math.random() * WALK_INS.length)], discount: mem ? { kind: 'member' } : null });
       await sleep(700);
     }
   } catch (e) { toast('Simulation stopped: ' + e.message); }
@@ -138,7 +157,7 @@ function renderToday() {
     h('span', { class: 'tm num' }, fmtTime(o.ts)),
     h('span', { class: 'what' }, h('b', { class: 'num' }, orderNo(o)), ' ' + (o.name ? o.name + ' · ' : '') + linesText(o.lines)),
     h('span', { class: 'tags' }, h('span', { class: 'tag' + (o.src === 'kiosk' ? ' live' : '') }, o.src === 'kiosk' ? 'kiosk' : 'counter'), h('span', { class: 'tag' + (o.status === 'done' ? '' : ' hot') }, STATUS_TEXT[o.status] || o.status)),
-    h('span', { class: 'num' }, money.format(o.total) + ' ' + (o.pay === 'pending' ? 'unpaid' : o.pay)))) : [h('li', { class: 'empty' }, 'No orders yet today.')]));
+    h('span', { class: 'num' }, money.format(o.total) + ' ' + (o.pay === 'pending' ? 'unpaid' : o.pay), o.discount ? h('small', { class: 'feed-disc' }, discountText(o)) : null))) : [h('li', { class: 'empty' }, 'No orders yet today.')]));
 }
 async function onClear() {
   const btn = $('clear'), reset = () => { S.confirmClear = false; btn.textContent = 'Clear test orders'; btn.classList.remove('primary'); };
