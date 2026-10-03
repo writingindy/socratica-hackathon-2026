@@ -7,7 +7,7 @@ The one database every project in this repository shares. [grandmas-till](../gra
 | `db.js` | Opens the database and gives you `listSales`, `addSale`, `listMembers` and the rest. No dependencies |
 | `till.db` | The SQLite database, created the first time the till starts. Not committed: everyone has their own |
 | `till.json` | Used instead of `till.db` on Node older than 22.13 |
-| `forecasts.js` | Read-only access to `forecast.db`: `rolling()` for the 7 days from today, `weekly()` for the weekly plan and shopping list |
+| `forecasts.js` | Read-only access to `forecast.db`: `rolling()` for the 7 days from today, `weekly()` for the weekly plan and shopping list, `forDay(day)` for what was forecast for any past day |
 | `forecast.db` | Demand forecasts and shopping lists, written by [demand-pred](../demand-pred/). Not committed |
 
 ## Use it from a project

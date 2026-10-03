@@ -1,22 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, subscribe, type DayForecast, type RollingForecast, type Sale, type SupplyLine, type WeeklyPlan } from "./api";
 
-type Page = "today" | "bake" | "plan" | "order" | "flavors" | "marketing" | "counter";
+type Page = "today" | "bake" | "plan" | "history" | "order" | "marketing" | "counter";
 
 const pages: { id: Page; label: string; icon: string }[] = [
   { id: "today", label: "Today", icon: "home" },
   { id: "bake", label: "Bake", icon: "bake" },
   { id: "plan", label: "Week plan", icon: "calendar" },
+  { id: "history", label: "Past days", icon: "clock" },
   { id: "order", label: "Order", icon: "box" },
-  { id: "flavors", label: "Flavors", icon: "spark" },
   { id: "marketing", label: "Marketing", icon: "heart" },
-];
-
-const flavors = [
-  { name: "Maple pecan", status: "Rising", mentions: 58, note: "Warm, familiar, and the top request from students. Pairs well with apple and oat granola." },
-  { name: "Pear ginger", status: "Rising", mentions: 31, note: "A fresh, grown-up flavor customers mention most after lunch." },
-  { name: "Pumpkin", status: "Steady", mentions: 44, note: "Still popular, but requests have stayed flat over the last two weeks." },
-  { name: "Cranberry", status: "Fading", mentions: 9, note: "Fewer requests this month. Better as an accent than the main flavor." },
 ];
 
 const partners = [
@@ -39,6 +32,7 @@ const DAY_MS = 86400000;
 const dayKeyOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const parseDay = (key: string) => { const [y, m, d] = key.split("-").map(Number); return new Date(y, m - 1, d); };
 const fmtDay = (key: string, opts: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric" }) => parseDay(key).toLocaleDateString("en-CA", opts);
+const shiftDay = (key: string, days: number) => { const d = parseDay(key); d.setDate(d.getDate() + days); return dayKeyOf(d); };
 const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const money = (x: number) => x.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 const money0 = (x: number) => x.toLocaleString("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 });
@@ -61,8 +55,8 @@ function Icon({ name }: { name: string }) {
     home: <><path d="M4 10.5 12 4l8 6.5V20h-5v-6H9v6H4Z" /></>,
     bake: <><path d="M5 18h14M7 18v-4c0-3 2-6 5-6s5 3 5 6v4M9 8c0-2 1-3 3-3s3 1 3 3" /></>,
     calendar: <><path d="M5 6h14v14H5ZM5 10h14M9 4v4M15 4v4" /></>,
+    clock: <><circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" /></>,
     box: <><path d="m4 7 8-4 8 4-8 4ZM4 7v10l8 4 8-4V7M12 11v10" /></>,
-    spark: <><path d="M12 2c.5 6 2.5 8 8 10-5.5 1.5-7.5 4-8 10-.8-6-2.8-8.5-8-10 5.2-1.5 7.2-4 8-10Z" /></>,
     heart: <><path d="M12 20S4 15.5 4 9.5C4 6 8.5 4 12 8c3.5-4 8-2 8 1.5 0 6-8 10.5-8 10.5Z" /></>,
     cart: <><path d="M3 5h2l2 10h10l2-7H6M9 20h.01M17 20h.01" /></>,
     check: <path d="m5 12 4 4L19 6" />,
@@ -150,14 +144,15 @@ export default function App() {
   const [bakeApproved, setBakeApproved] = useState(false);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [orderSent, setOrderSent] = useState(false);
-  const [selectedFlavor, setSelectedFlavor] = useState(0);
-  const [testFlavor, setTestFlavor] = useState<string | null>(null);
   const [selectedPartner, setSelectedPartner] = useState(0);
   const [sentPartners, setSentPartners] = useState<string[]>([]);
   const [outreach, setOutreach] = useState(true);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [phone, setPhone] = useState("");
   const [toast, setToast] = useState("");
+  const [pastDay, setPastDay] = useState(() => shiftDay(dayKeyOf(new Date()), -1));
+  const [pastForecast, setPastForecast] = useState<RollingForecast | null>(null);
+  const [pastSales, setPastSales] = useState<Sale[] | null>(null);
 
   /* forecasts change at most once a day, so check every 10 minutes and whenever the tab comes back */
   useEffect(() => {
@@ -214,6 +209,17 @@ export default function App() {
     }
     return out;
   }, [sales, todayStart]);
+
+  /* Past days: what was forecast for the chosen day, and what actually sold */
+  useEffect(() => {
+    if (page !== "history") return;
+    let live = true;
+    const from = parseDay(pastDay).getTime(), to = parseDay(shiftDay(pastDay, 1)).getTime();
+    setPastForecast(null); setPastSales(null);
+    api.dayForecast(pastDay).then((f) => live && setPastForecast(f), () => live && setPastForecast(null));
+    api.sales({ since: from }).then((all) => live && setPastSales(all.filter((x) => x.ts < to)), () => live && setPastSales([]));
+    return () => { live = false; };
+  }, [page, pastDay]);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -316,22 +322,76 @@ export default function App() {
             <div className="card-head"><div><span className="eyebrow">Bake plan</span><div className="row-title">What to make each day</div></div></div>
             <MakeTable rows={weekly.forecasts} today={todayKey} />
           </section>
-          <div className="plan-bottom">
-            <section className="plan-section">
-              <div className="card-head"><div><span className="eyebrow">The note</span><div className="row-title">Grandma's weekly plan</div></div><Button variant="secondary" onClick={() => { navigator.clipboard?.writeText(r.note).then(() => showToast("Note copied."), () => showToast("Couldn't copy. Select the text instead.")); }}>Copy</Button></div>
-              <pre className="plan-note">{r.note}</pre>
-            </section>
-            <section className="plan-section">
-              <div className="card-head"><div><span className="eyebrow">How sure</span><div className="row-title">Checked on past weeks</div></div></div>
-              {r.backtest ? (
-                <>
-                  <p>Replayed on the last {r.backtest.weeks} weeks of sales, each item's weekly total was off by <b>{Math.round(r.backtest.itemErr * 100)}%</b> on average. Simply copying the previous week was off by {Math.round(r.backtest.naiveErr * 100)}%.</p>
-                  <p>The daily bake amounts covered what sold <b>{Math.round(r.backtest.covered * 100)}%</b> of the time.</p>
-                </>
-              ) : <p>Needs about five weeks of sales before it can check itself.</p>}
-              <p className="source-note">Based on sales from {fmtDay(r.historyStart)} to {fmtDay(r.historyEnd)}.</p>
-            </section>
+          <section className="plan-section">
+            <div className="card-head"><div><span className="eyebrow">How sure</span><div className="row-title">Checked on past weeks</div></div></div>
+            {r.backtest ? (
+              <>
+                <p>Replayed on the last {r.backtest.weeks} weeks of sales, each item's weekly total was off by <b>{Math.round(r.backtest.itemErr * 100)}%</b> on average. Simply copying the previous week was off by {Math.round(r.backtest.naiveErr * 100)}%.</p>
+                <p>The daily bake amounts covered what sold <b>{Math.round(r.backtest.covered * 100)}%</b> of the time.</p>
+              </>
+            ) : <p>Needs about five weeks of sales before it can check itself.</p>}
+            <p className="source-note">Based on sales from {fmtDay(r.historyStart)} to {fmtDay(r.historyEnd)}.</p>
+          </section>
+        </>
+      );
+    }
+
+    if (page === "history") {
+      const isToday = pastDay === todayKey;
+      const rows = pastForecast?.forecasts ?? [];
+      const names = new Map([...(rolling?.forecasts ?? []), ...rows].map((r) => [r.itemId, r.itemName]));
+      const fresh = new Set([...madeAhead, ...rows.filter((r) => r.madeAhead).map((r) => r.itemId)]);
+      const sold: Record<string, number> = {};
+      for (const sale of pastSales ?? []) for (const l of sale.lines) sold[l.id] = (sold[l.id] ?? 0) + l.q;
+      const items = [...new Set([...rows.filter((r) => r.madeAhead).map((r) => r.itemId), ...Object.keys(sold).filter((id) => fresh.has(id))])]
+        .map((id) => { const r = rows.find((x) => x.itemId === id); return { id, name: names.get(id) ?? id, make: r?.make ?? null, forecast: r?.forecast ?? null, sold: sold[id] ?? 0 }; })
+        .sort((a, b) => (b.make ?? b.sold) - (a.make ?? a.sold));
+      const drinks = Object.entries(sold).filter(([id]) => !fresh.has(id)).reduce((t, [, n]) => t + n, 0);
+      const planned = items.reduce((t, i) => t + (i.make ?? 0), 0), soldTotal = items.reduce((t, i) => t + i.sold, 0);
+      const expected = items.reduce((t, i) => t + (i.forecast ?? 0), 0);
+      const longDay = fmtDay(pastDay, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+      return (
+        <>
+          <PageHeader title="Past days" subtitle="Pick a day to see what the forecast said and what really sold." />
+          <div className="day-picker">
+            <Button variant="secondary" onClick={() => setPastDay(shiftDay(pastDay, -1))}><Icon name="back" /> Day before</Button>
+            <input type="date" value={pastDay} max={todayKey} aria-label="Pick a day" onChange={(e) => e.target.value && setPastDay(e.target.value > todayKey ? todayKey : e.target.value)} />
+            <Button variant="secondary" disabled={pastDay >= todayKey} onClick={() => setPastDay(shiftDay(pastDay, 1))}>Day after <Icon name="arrow" /></Button>
+            {!isToday && <Button variant="text" onClick={() => setPastDay(todayKey)}>Go to today</Button>}
           </div>
+          <h2 className="past-title">{isToday ? `Today, ${longDay}` : longDay}</h2>
+          {pastSales === null ? <p className="source-note">Loading…</p> : items.length === 0 && drinks === 0 ? (
+            <article className="empty-card"><div className="row-title">Nothing for this day</div><p>No forecast was made and nothing was sold.</p></article>
+          ) : (
+            <>
+              <div className="plan-stats">
+                <article><span className="eyebrow">Planned to bake</span><b>{pastForecast ? planned : "–"}</b><p>{pastForecast ? "pastries and parfaits" : "no forecast that day"}</p></article>
+                <article className="is-shop"><span className="eyebrow">{isToday ? "Sold so far" : "Sold"}</span><b>{soldTotal}</b><p>pastries and parfaits</p></article>
+                <article><span className="eyebrow">Forecast said</span><b>{pastForecast ? Math.round(expected) : "–"}</b><p>would sell</p></article>
+                <article><span className="eyebrow">Drinks</span><b>{drinks}</b><p>made to order</p></article>
+              </div>
+              <section className="plan-section">
+                <div className="card-head"><div><span className="eyebrow">Item by item</span><div className="row-title">{pastForecast ? "Planned and sold" : "What sold"}</div></div></div>
+                <div className="plan-scroll">
+                  <table className="plan-table past-table">
+                    <thead><tr><th>Item</th><th>Planned</th><th>Forecast</th><th>{isToday ? "Sold so far" : "Sold"}</th><th>How it went</th></tr></thead>
+                    <tbody>
+                      {items.map((i) => (
+                        <tr key={i.id}>
+                          <td>{i.name}</td>
+                          <td>{i.make ?? "–"}</td>
+                          <td>{i.forecast === null ? "–" : Math.round(i.forecast)}</td>
+                          <td><b>{i.sold}</b></td>
+                          <td>{i.make === null ? "–" : i.sold >= i.make && i.make > 0 ? <Status tone="yellow">Sold out</Status> : isToday ? `${i.make - i.sold} still to sell` : `${i.make - i.sold} left over`}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {pastForecast && <p className="source-note">Forecast made {new Date(pastForecast.run.created).toLocaleString("en-CA", { weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}.</p>}
+              </section>
+            </>
+          )}
         </>
       );
     }
@@ -371,42 +431,6 @@ export default function App() {
             <Button disabled={orderSent || selectedSupplies.length === 0} onClick={() => { setOrderSent(true); showToast("Order sent to your supplier."); }}>
               {orderSent ? <><Icon name="check" /> Order sent to supplier</> : <>Send this order <Icon name="arrow" /></>}
             </Button>
-          </div>
-        </>
-      );
-    }
-
-    if (page === "flavors") {
-      const flavor = flavors[selectedFlavor];
-      return (
-        <>
-          <PageHeader title="What's coming" subtitle="What customers are asking for in the last 30 days." />
-          <div className="flavor-layout">
-            <div>
-              <div className="flavor-list">
-                {flavors.map((item, index) => (
-                  <button className={`flavor-row ${selectedFlavor === index ? "is-selected" : ""}`} key={item.name} onClick={() => setSelectedFlavor(index)}>
-                    <div><span className="row-title">{item.name}</span><Status tone={item.status === "Rising" ? "green" : item.status === "Fading" ? "red" : "yellow"}>{item.status}</Status></div>
-                    <div className="flavor-score"><b>{item.mentions}</b><span>mentions</span></div>
-                    <div className="flavor-bar"><i style={{ width: `${(item.mentions / 58) * 100}%` }} /></div>
-                  </button>
-                ))}
-              </div>
-              <p className="source-note">From 214 text replies and QR order notes.</p>
-            </div>
-            <article className="flavor-detail">
-              <span className="eyebrow">Customer favorite</span>
-              <div className="flavor-name">{flavor.name}</div>
-              <div className="quote-mark">“</div>
-              <p>{flavor.note}</p>
-              <div className="detail-stat"><b>{flavor.mentions}</b><span>people mentioned it</span></div>
-              <Button
-                disabled={testFlavor === flavor.name}
-                onClick={() => { setTestFlavor(flavor.name); showToast(`${flavor.name} added to Saturday's test batch.`); }}
-              >
-                {testFlavor === flavor.name ? <><Icon name="check" /> Added to Saturday</> : <>Add to Saturday test batch <Icon name="arrow" /></>}
-              </Button>
-            </article>
           </div>
         </>
       );
@@ -487,14 +511,10 @@ export default function App() {
     }
 
     const top3 = bakes.slice(0, 3).map((b) => `${b.amount} ${b.name.toLowerCase()}`).join(", ");
-    const maxBar = Math.max(1, ...rollingDays.map((d) => d.forecast), soldToday);
     const split = toBuy.find((s) => s.buyLater > 0);
     return (
       <>
-        <div className="today-heading">
-          <PageHeader title="Hello, Grandma" subtitle={`${parseDay(todayKey).toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric" })} · Here's what needs your attention.`} />
-          <div className="weather"><span className="rain-lines">///</span><div><b>Rainy, 14°C</b><span>Great study weather</span></div></div>
-        </div>
+        <PageHeader title="Hello, Grandma" subtitle={`Today is ${parseDay(todayKey).toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric" })}. Here's what needs your attention.`} />
         <div className="today-grid">
           <div className="today-main">
             <article className="hero-card">
@@ -505,30 +525,11 @@ export default function App() {
                 <p>{todayPlan ? `Most of all: ${top3}.` : "No forecast for today yet. Start the forecast service: cd demand-pred && node forecast.js --watch"}</p>
                 <div className="hero-actions"><Status tone={bakeApproved ? "green" : "yellow"}>{bakeApproved ? "Approved" : "Not approved yet"}</Status><Button onClick={() => navigate("bake")}>See bake list <Icon name="arrow" /></Button></div>
               </div>
-              <div className="parfait-art" aria-hidden="true">
-                <span className="art-spark">✦</span>
-                <div className="glass"><i /><i /><i /><b /></div>
-                <span className="art-note">today's<br />magic!</span>
-              </div>
             </article>
-            <article className="forecast-card">
-              <div className="card-head"><div><span className="eyebrow">Next 7 days</span><div className="row-title">Fresh items: forecast and sold</div></div><div className="legend"><span><i />Sold</span><span><i />Forecast</span></div></div>
-              {rollingDays.length === 0 ? <p className="source-note">No forecast yet.</p> : (
-                <div className="bars">
-                  {rollingDays.map((d) => {
-                    const isToday = d.day === todayKey;
-                    return (
-                      <div className={`bar-day ${isToday ? "is-today" : ""}`} key={d.day} title={`${fmtDay(d.day, { weekday: "long", month: "short", day: "numeric" })}: forecast ${Math.round(d.forecast)}${isToday ? `, sold ${soldToday} so far` : ""}`}>
-                        <small>{Math.round(d.forecast)}</small>
-                        <div className="bar-wrap"><i style={{ height: `${(d.forecast / maxBar) * 100}%` }} />{isToday && <b style={{ height: `${(soldToday / maxBar) * 100}%` }} />}</div>
-                        <span>{fmtDay(d.day, { weekday: "narrow" })}</span>{isToday && <em>today</em>}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {rollingStale && <p className="source-note">Forecast made {fmtDay(rolling!.run.weekStart)}. Is the forecast service running?</p>}
-            </article>
+            <div className="quick-links">
+              <button className="quick-link quick-plan" onClick={() => navigate("plan")}><div><span>Week plan</span><b>{weekly ? `${fmtDay(weekly.run.weekStart)} to ${fmtDay(weekly.run.weekEnd)}` : "Not made yet"}</b></div><Icon name="arrow" /></button>
+              <button className="quick-link quick-partner" onClick={() => navigate("marketing")}><div><span>New neighbors</span><b>3 places to say hello to</b></div><Icon name="arrow" /></button>
+            </div>
           </div>
           <div className="today-side">
             <article className={`alert-card ${orderSent || (weekly && toBuy.length === 0) ? "alert-done" : ""}`}>
@@ -543,8 +544,6 @@ export default function App() {
               <div className="progress"><i style={{ width: `${Math.min(100, bakeTotal ? (soldToday / bakeTotal) * 100 : 0)}%` }} /></div>
               <p>of {bakeTotal} to bake · {todaySales.length} orders today</p>
             </article>
-            <button className="quick-link quick-flavor" onClick={() => navigate("plan")}><div><span>Week plan</span><b>{weekly ? `${fmtDay(weekly.run.weekStart)} to ${fmtDay(weekly.run.weekEnd)}` : "Not made yet"}</b></div><Icon name="arrow" /></button>
-            <button className="quick-link quick-partner" onClick={() => navigate("marketing")}><div><span>New neighbors</span><b>3 places to say hello to</b></div><Icon name="arrow" /></button>
           </div>
         </div>
       </>
@@ -556,6 +555,7 @@ export default function App() {
       <div className="parfait-stripe"><i /><i /><i /><i /></div>
       <aside className="sidebar">
         <button className="brand" onClick={() => navigate("today")}><span className="brand-mark">G</span><span>Grandma's<br /><i>Bakeria</i></span></button>
+        <div className="today-date"><span>Today is</span><b>{fmtDay(todayKey, { weekday: "long" })}</b><b>{fmtDay(todayKey, { month: "long", day: "numeric" })}</b></div>
         <nav className="nav-list" aria-label="Main navigation">
           {pages.map((item) => (
             <button className={page === item.id ? "is-active" : ""} onClick={() => navigate(item.id)} key={item.id}>
@@ -563,14 +563,10 @@ export default function App() {
               {item.id === "order" && !orderSent && toBuy.length > 0 && <i className="nav-badge">!</i>}
             </button>
           ))}
-          <div className="nav-divider"><span>Counter</span></div>
-          <button className={page === "counter" ? "is-active" : ""} onClick={() => navigate("counter")}><span className="nav-icon"><Icon name="cart" /></span>New order</button>
         </nav>
-        <div className="sidebar-help"><span>Need a hand?</span><button onClick={() => showToast("Help request sent. We'll call you shortly.")}>Call for help</button></div>
-        <div className="grandma-profile"><span>GM</span><div><b>Grandma Mae</b><i>Shop owner</i></div><button aria-label="Open settings">•••</button></div>
       </aside>
       <section className="main-panel">
-        <div className="mobile-top"><button className="brand" onClick={() => navigate("today")}><span className="brand-mark">G</span><span>Grandma's Bakeria</span></button></div>
+        <div className="mobile-top"><button className="brand" onClick={() => navigate("today")}><span className="brand-mark">G</span><span>Grandma's Bakeria</span></button><div className="today-date"><b>{fmtDay(todayKey, { weekday: "short", month: "short", day: "numeric" })}</b></div></div>
         <div className="screen">{renderScreen()}</div>
       </section>
       {toast && <div className="toast"><span><Icon name="check" /></span>{toast}</div>}

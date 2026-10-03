@@ -4,7 +4,8 @@
    const forecasts = require('../data/forecasts.js').open();
    forecasts.rolling();   // the 7 days from today, remade every day
    forecasts.weekly();    // the weekly plan: 7 days from the day after it was made, plus the shopping list
-   Both return null until demand-pred has made one. */
+   forecasts.forDay(day); // what was forecast for one day ("YYYY-MM-DD"), from the newest run that covered it
+   All return null until demand-pred has made one. */
 const fs = require('fs'), path = require('path');
 
 const FILE = path.join(__dirname, 'forecast.db');
@@ -45,6 +46,13 @@ function open() {
     exists: () => fs.existsSync(FILE),
     rolling: () => read('rolling_run', 'rolling_forecasts'),
     weekly: () => read('latest_run', 'latest_demand_forecasts', 'latest_supply_orders'),
+    /* every run is kept, so past days keep their forecast. A rolling run made on or just before the day beats a weekly plan */
+    forDay: day => {
+      const d = conn(); if (!d) return null;
+      const r = d.prepare(`SELECT * FROM forecast_runs WHERE week_start <= ? AND week_end >= ? ORDER BY kind = 'rolling' DESC, created DESC LIMIT 1`).get(day, day);
+      if (!r) return null;
+      return { run: run(r), forecasts: d.prepare('SELECT * FROM demand_forecasts WHERE run_id = ? AND day = ? ORDER BY made_ahead DESC, item_name').all(r.id, day).map(forecast) };
+    },
   };
 }
 

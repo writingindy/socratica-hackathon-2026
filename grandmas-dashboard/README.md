@@ -1,6 +1,6 @@
 # Grandma's Dashboard
 
-Grandma's owner dashboard: what to bake today, supplies to order, rising flavors and local marketing. React + Vite + Tailwind, first designed in Figma Make.
+Grandma's owner dashboard: what to bake today, supplies to order and local marketing. React + Vite + Tailwind, first designed in Figma Make.
 
 It uses the same database as [Grandma's Till](../grandmas-till/), kept in the shared [`data/`](../data/) folder, so every sale rung up on the till shows up here.
 
@@ -28,7 +28,7 @@ Then open <http://localhost:3001>.
 | Request | Answered by |
 |---|---|
 | `GET /api/sales`, `/api/members`, `/api/health` | This project's dev server, straight from `../data` |
-| `GET /api/forecast/rolling`, `/api/forecast/weekly` | This project's dev server, from `../data/forecast.db`, which [demand-pred](../demand-pred/) writes |
+| `GET /api/forecast/rolling`, `/api/forecast/weekly`, `/api/forecast/day?day=YYYY-MM-DD` | This project's dev server, from `../data/forecast.db`, which [demand-pred](../demand-pred/) writes |
 | Everything else under `/api` (new orders, status changes, menu, live events) | The till server on port 3000 (change with `TILL_URL=...`) |
 
 Call these through [`src/api.ts`](src/api.ts), which has the types and a `subscribe()` helper for live updates:
@@ -42,7 +42,7 @@ const stop = subscribe({ sale: (s) => console.log("new sale", s.total) });
 
 ## What still needs wiring
 
-Today, Bake, Week plan and Order read real forecasts. Without demand-pred running, they show how to start it. Flavors, Marketing and New order still use placeholder data at the top of `src/App.tsx` (`flavors`, `partners`, `menu`), and so does the weather on Today. Replace those with calls to `src/api.ts`. If you need data the API doesn't have yet, add the endpoint to `grandmas-till/server.js`.
+Today, Bake, Week plan, Past days and Order read real forecasts. Without demand-pred running, they show how to start it. Marketing and New order still use placeholder data at the top of `src/App.tsx` (`partners`, `menu`). Replace those with calls to `src/api.ts`. If you need data the API doesn't have yet, add the endpoint to `grandmas-till/server.js`.
 
 ## Scripts
 
