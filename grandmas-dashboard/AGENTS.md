@@ -14,7 +14,7 @@ Grandma's owner dashboard: React 19 + Vite + Tailwind CSS v4, written in TypeScr
 ## Project structure
 
 - `src/main.tsx` - React entrypoint; mounts `src/App.tsx` into `#root`
-- `src/App.tsx` - the dashboard screens (Today, Bake, Week plan, Order, Flavors, Marketing, New order). Today, Bake, Week plan and Order use real forecasts; Flavors, Marketing and New order still use placeholder data at the top of the file
+- `src/App.tsx` - the dashboard screens (Today, Bake, Week plan, Order, Trends, Marketing, New order). Today, Bake, Week plan and Order use real forecasts; Today also shows live takings and the till's waiting orders. Trends is worked out from the last four weeks of sales and order notes. New order uses the till's menu and places real orders through it. Marketing (`partners`) and the weather on Today are still placeholders
 - `src/api.ts` - typed client for the till API, plus `subscribe()` for live updates
 - `src/index.css` - all styling; imports Tailwind
 - `vite.config.ts` - Vite config: dev port 3001, reads from `../data`, `/api` proxy to the till
