@@ -1,0 +1,11 @@
+{
+  "name": "socratica-hackathon-2026",
+  "private": true,
+  "description": "Runs Grandma's Till, demand-pred and Grandma's Dashboard together.",
+  "scripts": {
+    "dev": "node dev.js",
+    "setup": "npm install --prefix grandmas-dashboard",
+    "reset": "npm run reset --prefix grandmas-till"
+  },
+  "engines": { "node": ">=22.13" }
+}
