@@ -84,6 +84,7 @@ button { border: 0; cursor: pointer; }
 .progress i { height: 100%; display: block; background: var(--leaf); border-right: 1.5px solid var(--ink); }
 .sold-card p { margin: 8px 0 0; color: var(--muted); font-size: 16px; }
 .quick-links { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.today-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: stretch; }
 .quick-link { min-height: 82px; display: flex; align-items: center; justify-content: space-between; padding: 15px 18px; border: 1.5px solid var(--ink); text-align: left; }
 .quick-link div { display: flex; flex-direction: column; gap: 3px; }
 .quick-link span { font-size: 16px; font-weight: 700; }
@@ -246,6 +247,7 @@ button { border: 0; cursor: pointer; }
   .screen { padding: 34px 18px 45px; }
   .today-grid, .today-side { display: flex; }
   .quick-links { grid-template-columns: 1fr; }
+  .today-row { grid-template-columns: 1fr; }
   .hero-actions { align-items: flex-start; flex-direction: column; }
   .bake-row { grid-template-columns: 65px 1fr; }
   .food-mark { width: 60px; height: 60px; }

@@ -586,6 +586,18 @@ export default function App() {
               <button className="quick-link quick-plan" onClick={() => navigate("plan")}><div><span>Week plan</span><b>{weekly ? `${fmtDay(weekly.run.weekStart)} to ${fmtDay(weekly.run.weekEnd)}` : "Not made yet"}</b></div><Icon name="arrow" /></button>
               <button className="quick-link quick-partner" onClick={() => navigate("marketing")}><div><span>New neighbors</span><b>{partners.length} places to say hello to</b></div><Icon name="arrow" /></button>
             </div>
+            <div className="today-row">
+              <article className="sold-card takings-card">
+                <div><span className="eyebrow">Takings today</span><b>{money0(takings)}</b></div>
+                <p>{payCount("card")} card · {payCount("cash")} cash{unpaid ? ` · ${money(unpaid)} still to pay` : ""}{discounts ? ` · ${money(discounts)} in discounts` : ""}</p>
+                {waiting.length > 0 && <p className="queue-note"><b>{waiting.length}</b> {waiting.length === 1 ? "order is" : "orders are"} waiting at the counter</p>}
+              </article>
+              <article className="sold-card">
+                <div><span className="eyebrow">Fresh items sold so far</span><b>{soldToday}</b></div>
+                <div className="progress"><i style={{ width: `${Math.min(100, bakeTotal ? (soldToday / bakeTotal) * 100 : 0)}%` }} /></div>
+                <p>of {bakeTotal} to bake · {todaySales.length} orders today</p>
+              </article>
+            </div>
           </div>
           <div className="today-side">
             <article className={`alert-card ${orderSent || (weekly && toBuy.length === 0) ? "alert-done" : ""}`}>
@@ -594,16 +606,6 @@ export default function App() {
               <div className="alert-title">{!weekly ? "No shopping list yet." : orderSent ? "Supply order sent." : toBuy.length ? `${toBuy.length} things to buy, about ${money0(weekly.run.suppliesCost)}.` : "Everything is on the shelf."}</div>
               <p>{!weekly ? "It's made every Sunday evening." : orderSent ? "Nothing urgent right now." : split?.buyLaterDay ? `${split.name}: buy ${split.buyNow} now and ${split.buyLater} on ${fmtDay(split.buyLaterDay, { weekday: "long" })}.` : `For ${fmtDay(weekly.run.weekStart)} to ${fmtDay(weekly.run.weekEnd)}.`}</p>
               {weekly && !orderSent && toBuy.length > 0 && <Button variant="secondary" onClick={() => navigate("order")}>Go to Order <Icon name="arrow" /></Button>}
-            </article>
-            <article className="sold-card">
-              <div><span className="eyebrow">Fresh items sold so far</span><b>{soldToday}</b></div>
-              <div className="progress"><i style={{ width: `${Math.min(100, bakeTotal ? (soldToday / bakeTotal) * 100 : 0)}%` }} /></div>
-              <p>of {bakeTotal} to bake · {todaySales.length} orders today</p>
-            </article>
-            <article className="sold-card takings-card">
-              <div><span className="eyebrow">Takings today</span><b>{money0(takings)}</b></div>
-              <p>{payCount("card")} card · {payCount("cash")} cash{unpaid ? ` · ${money(unpaid)} still to pay` : ""}{discounts ? ` · ${money(discounts)} in discounts` : ""}</p>
-              {waiting.length > 0 && <p className="queue-note"><b>{waiting.length}</b> {waiting.length === 1 ? "order is" : "orders are"} waiting at the counter</p>}
             </article>
             <article className="sold-card latest-card">
               <div><span className="eyebrow">Latest orders</span><b>{todaySales.length}</b></div>
